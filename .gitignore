@@ -1,0 +1,18 @@
+# Personal screenshots and reference images (kept locally only)
+*.png
+*.jpg
+*.jpeg
+!assets/sprites/*.png
+
+# Claude local config
+.claude/
+
+# Aseprite working files
+scripts/aseprite/*.aseprite
+scripts/aseprite/test_output.png
+scripts/aseprite/preview_font.png
+
+# OS noise
+Thumbs.db
+.DS_Store
+desktop.ini

@@ -1,0 +1,2394 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=768, initial-scale=1">
+<title>שבור את המילה</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: radial-gradient(ellipse at center, #1a0f3a 0%, #050416 80%);
+    font-family: 'Heebo', 'Arial', sans-serif;
+    color: #ffd966;
+    overflow: hidden;
+    user-select: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #wrap {
+    position: relative;
+    width: 768px; height: 600px;
+    box-shadow: 0 0 60px rgba(120, 80, 200, 0.5);
+  }
+  #game {
+    display: block;
+    width: 768px; height: 600px;
+    background: #050416;
+    image-rendering: pixelated;
+  }
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(10, 6, 32, 0.95);
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 30px; text-align: center;
+    z-index: 10;
+  }
+  .overlay.active { display: flex; }
+  .overlay h1 {
+    color: #ff8a3d; font-size: 40px; font-weight: 900;
+    margin: 0 0 14px; letter-spacing: 3px;
+    text-shadow: 4px 4px 0 #6a1a1a, 0 0 20px rgba(255,138,61,0.6);
+  }
+  .overlay h2 {
+    color: #ffd966; font-size: 24px; font-weight: 700;
+    margin: 8px 0 22px;
+    text-shadow: 2px 2px 0 #4a3a1a;
+  }
+  .overlay p {
+    color: #ccc8e8; font-size: 17px; line-height: 1.7;
+    max-width: 600px; margin: 6px 0;
+  }
+  .options {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-top: 22px; max-width: 620px; width: 100%;
+  }
+  .option-btn {
+    background: #1f1547;
+    border: 3px solid #6a4ab8;
+    color: #ffd966;
+    font-family: 'Heebo', inherit; font-size: 18px; font-weight: 700;
+    padding: 16px 20px; cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+  }
+  .option-btn:hover:not(:disabled) {
+    background: #3a2870; border-color: #9a7adf;
+    transform: translateY(-2px); box-shadow: 0 4px 0 #1a0f3a;
+  }
+  .option-btn:disabled { cursor: default; opacity: 0.6; }
+  .option-btn.correct {
+    background: #1f6a2f; border-color: #5cff7a; color: #fff;
+    box-shadow: 0 0 20px rgba(92,255,122,0.7);
+  }
+  .option-btn.wrong {
+    background: #6a1f1f; border-color: #ff5a4a; color: #fff;
+  }
+  .start-btn {
+    background: #ff8a3d; border: 4px solid #ffb87a;
+    color: #1a0f3a; font-family: 'Heebo', inherit;
+    font-size: 24px; font-weight: 900; letter-spacing: 2px;
+    padding: 14px 40px; cursor: pointer;
+    margin-top: 22px;
+    box-shadow: 0 5px 0 #aa4a1a;
+  }
+  .start-btn:hover { background: #ffa55c; transform: translateY(-2px); box-shadow: 0 7px 0 #aa4a1a; }
+  .start-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #aa4a1a; }
+  /* ====== Polished start screen ====== */
+  .start-screen { background: transparent !important; padding: 0; }
+  .start-vignette {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at center, rgba(10, 6, 32, 0.35) 0%, rgba(5, 4, 22, 0.85) 75%);
+    pointer-events: none;
+  }
+  /* Pixel-art double frame card */
+  .start-frame {
+    position: relative; z-index: 2;
+    width: 600px;
+    background:
+      linear-gradient(180deg, rgba(20, 10, 50, 0.95) 0%, rgba(10, 6, 32, 0.97) 100%);
+    border: 4px solid #6a4ab8;
+    box-shadow:
+      0 0 0 2px #1a0f3a inset,
+      0 0 0 6px #3a2870 inset,
+      0 0 40px rgba(154, 122, 223, 0.45),
+      0 14px 0 rgba(0, 0, 0, 0.55);
+    padding: 6px;
+  }
+  .start-frame::before {
+    content: ''; position: absolute; inset: 8px;
+    border: 1px solid rgba(154, 122, 223, 0.35); pointer-events: none;
+  }
+  /* Decorative corner pixels */
+  .start-frame::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(circle at 6px 6px,    #ffd966 2px, transparent 2px),
+      radial-gradient(circle at calc(100% - 6px) 6px,    #ffd966 2px, transparent 2px),
+      radial-gradient(circle at 6px calc(100% - 6px),    #ffd966 2px, transparent 2px),
+      radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #ffd966 2px, transparent 2px);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 0 4px rgba(255, 217, 102, 0.8));
+  }
+  .start-content {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 22px 28px 24px;
+  }
+  .start-tagline {
+    color: #9a7adf; font-size: 12px; letter-spacing: 8px;
+    font-weight: 700; margin-bottom: 4px; text-transform: uppercase;
+  }
+  .start-title {
+    font-size: 60px; font-weight: 900; letter-spacing: 4px; margin: 0;
+    background: linear-gradient(180deg, #ffd966 0%, #ff8a3d 55%, #c8341a 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 22px rgba(255, 138, 61, 0.6))
+            drop-shadow(0 4px 0 rgba(80, 20, 10, 0.7));
+    animation: titlePulse 3s ease-in-out infinite;
+    line-height: 1.05; text-shadow: none;
+  }
+  @keyframes titlePulse {
+    0%, 100% { filter: drop-shadow(0 0 16px rgba(255, 138, 61, 0.45))
+                       drop-shadow(0 4px 0 rgba(80, 20, 10, 0.7)); }
+    50%      { filter: drop-shadow(0 0 36px rgba(255, 217, 102, 0.92))
+                       drop-shadow(0 4px 0 rgba(80, 20, 10, 0.7)); }
+  }
+  .start-divider {
+    color: #ff8a3d; letter-spacing: 12px; font-size: 13px;
+    margin: 6px 0 14px; opacity: 0.7;
+  }
+
+  /* Pixel-art keyboard images, scaled crisp */
+  .start-keys {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    margin: 8px 0 18px;
+  }
+  .key-row { display: flex; gap: 10px; }
+  .key-img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    width: 64px; height: 64px;          /* 32x32 source -> 2x */
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+  }
+  .key-img-space {
+    width: 220px; height: 64px;          /* 110x32 source -> 2x */
+  }
+
+  .start-prompt {
+    color: #ff8a3d; font-size: 16px; font-weight: 900;
+    letter-spacing: 4px; margin: 6px 0 12px;
+    text-shadow: 2px 2px 0 #4a1a08;
+  }
+
+  /* Difficulty cards */
+  .diff-cards {
+    display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  }
+  .diff-card {
+    background: linear-gradient(180deg, #251a55 0%, #14082c 100%);
+    border: 3px solid #6a4ab8;
+    color: #ffd966;
+    font-family: 'Heebo', inherit;
+    cursor: pointer;
+    padding: 14px 18px;
+    width: 168px;
+    text-align: center;
+    border-radius: 6px;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    box-shadow: 0 5px 0 #0a0420;
+  }
+  .diff-card:hover {
+    background: linear-gradient(180deg, #3a2870 0%, #1f1547 100%);
+    border-color: #ff8a3d;
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 9px 0 #0a0420, 0 0 22px rgba(255, 138, 61, 0.5);
+  }
+  .diff-card:active { transform: translateY(2px); box-shadow: 0 2px 0 #0a0420; }
+  .diff-card--mid  .diff-stars { color: #ffd28a; }
+  .diff-card--hard .diff-stars { color: #ff8a3d; }
+  .diff-stars {
+    color: #fff5b0; font-size: 16px; letter-spacing: 4px;
+    text-shadow: 0 0 10px rgba(255, 217, 102, 0.6);
+  }
+  .diff-title {
+    font-size: 22px; font-weight: 900; color: #ff8a3d;
+    letter-spacing: 2px; text-shadow: 2px 2px 0 #4a1a08;
+  }
+  .diff-desc {
+    font-size: 12px; color: #ccc8e8; line-height: 1.5; font-weight: 400;
+    letter-spacing: 1px;
+  }
+  #riddleResult { font-size: 20px; margin-top: 16px; min-height: 26px; font-weight: 700; }
+  .reveal-text {
+    color: #ff8a3d; font-size: 24px; font-weight: 900; letter-spacing: 1px;
+    background: #110a30; padding: 12px 20px;
+    border: 3px solid #6a4ab8; margin: 10px 0;
+    max-width: 620px; line-height: 1.6;
+  }
+  .hint {
+    margin-top: 16px; font-size: 15px; color: #9a7adf;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="768" height="600"></canvas>
+
+  <div id="startScreen" class="overlay active start-screen">
+    <div class="start-vignette"></div>
+    <div class="start-frame">
+      <div class="start-content">
+        <div class="start-tagline">משחק קריאה רטרו</div>
+        <h1 class="start-title">שבור את המילה</h1>
+        <div class="start-divider">★ ★ ★</div>
+
+        <!-- Pixel-art keyboard illustrations: arrows for paddle, space to launch.
+             dir="ltr" forces visual order: ← on the left, → on the right (pointing outward). -->
+        <div class="start-keys" dir="ltr">
+          <div class="key-row">
+            <img class="key-img" src="assets/sprites/key_left.png"  alt="←" />
+            <img class="key-img" src="assets/sprites/key_right.png" alt="→" />
+          </div>
+          <div class="key-row">
+            <img class="key-img key-img-space" src="assets/sprites/key_space.png" alt="SPACE" />
+          </div>
+        </div>
+
+        <div class="start-prompt">בחר רמת קושי</div>
+        <div class="diff-cards">
+          <button class="diff-card" data-stage="0">
+            <div class="diff-stars">★</div>
+            <div class="diff-title">מתחיל</div>
+            <div class="diff-desc">מילים &middot; משפטים &middot; פיסקאות</div>
+          </button>
+          <button class="diff-card diff-card--mid" data-stage="3">
+            <div class="diff-stars">★ ★</div>
+            <div class="diff-title">בינוני</div>
+            <div class="diff-desc">משפטים &middot; פיסקאות</div>
+          </button>
+          <button class="diff-card diff-card--hard" data-stage="6">
+            <div class="diff-stars">★ ★ ★</div>
+            <div class="diff-title">מתקדם</div>
+            <div class="diff-desc">פיסקאות מורכבות</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <audio id="bgmusic" src="assets/bgmusic.mp3" preload="auto" loop></audio>
+
+  <div id="riddleScreen" class="overlay">
+    <h1 id="riddleTitle">החידה</h1>
+    <div class="reveal-text" id="revealText"></div>
+    <h2 id="riddleQ"></h2>
+    <div class="options" id="riddleOptions"></div>
+    <div id="riddleResult"></div>
+  </div>
+
+  <div id="gameOverScreen" class="overlay">
+    <h1>המשחק נגמר</h1>
+    <h2 id="finalScore"></h2>
+    <button class="start-btn" id="restartBtn">שחק שוב</button>
+  </div>
+
+  <div id="winScreen" class="overlay">
+    <h1>כל הכבוד!</h1>
+    <h2>סיימת את כל השלבים!</h2>
+    <p id="winScore"></p>
+    <button class="start-btn" id="playAgainBtn">שחק שוב</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ====================================================================
+// Canvas — native 768x600, no scaling tricks. Crisp drawing throughout.
+// ====================================================================
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const W = 768, H = 600;
+
+// Layout (canvas pixels)
+const HEADER_H = 46;
+const FOOTER_H = 90;
+const SIDEBAR_W = 168;
+const FRAME = 4;
+
+const PLAY_X = FRAME + 4;
+const PLAY_Y = HEADER_H + 4;
+const PLAY_W = W - SIDEBAR_W - PLAY_X - FRAME - 4;   // ≈ 584
+const PLAY_H = H - HEADER_H - FOOTER_H - 8;           // ≈ 456
+
+const BALL_R = 7;
+const PADDLE_W = 110;
+const PADDLE_H = 18;
+const BALL_SPEED = 360;
+
+// ====================================================================
+// Sound (Web Audio synthesis)
+// ====================================================================
+let audioCtx = null, muted = false;
+const bgMusicEl = document.getElementById('bgmusic');
+if (bgMusicEl) bgMusicEl.volume = 0.22;   // low — tennis SFX stay dominant
+let bgMusicStarted = false;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { audioCtx = null; }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  // First user interaction unlocks autoplay — start music here.
+  if (!bgMusicStarted && bgMusicEl && !muted) {
+    bgMusicEl.play().then(() => { bgMusicStarted = true; }).catch(() => {});
+  }
+}
+function setMuted(m) {
+  muted = m;
+  if (bgMusicEl) {
+    if (muted) bgMusicEl.pause();
+    else if (bgMusicStarted) bgMusicEl.play().catch(() => {});
+  }
+}
+function tone(freq, dur, type='square', vol=0.12, freqEnd=null) {
+  if (muted || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  if (freqEnd != null) osc.frequency.exponentialRampToValueAtTime(freqEnd, audioCtx.currentTime + dur);
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + dur);
+}
+function noiseBurst(dur=0.05, freq=800, q=4, vol=0.4) {
+  if (muted || !audioCtx) return;
+  const sr = audioCtx.sampleRate;
+  const len = Math.floor(sr * dur);
+  const buffer = audioCtx.createBuffer(1, len, sr);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / len * 6);
+  }
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass'; filter.frequency.value = freq; filter.Q.value = q;
+  const g = audioCtx.createGain(); g.gain.value = vol;
+  noise.connect(filter); filter.connect(g); g.connect(audioCtx.destination);
+  noise.start();
+}
+const sound = {
+  brick(){ tone(900 + Math.random()*240, 0.06, 'square', 0.08, 600); },
+  paddle(){ noiseBurst(0.06, 700, 3, 0.34); tone(180, 0.08, 'sine', 0.14, 90); },
+  wall(){ tone(220, 0.05, 'square', 0.08); },
+  lose(){ tone(280, 0.18, 'sawtooth', 0.18, 90);
+          setTimeout(()=>tone(140, 0.25, 'sawtooth', 0.18, 60), 140); },
+  clear(){ [440, 554, 659, 880].forEach((f,i)=>setTimeout(()=>tone(f,0.14,'square',0.13), i*80)); },
+  correct(){ [659, 880, 1100].forEach((f,i)=>setTimeout(()=>tone(f,0.12,'triangle',0.14), i*70)); },
+  wrong(){ tone(200, 0.3, 'square', 0.12, 100); },
+  click(){ tone(700, 0.04, 'square', 0.06); }
+};
+
+// ====================================================================
+// CONTENT POOLS — randomized per game so no two playthroughs are the same.
+// Each correct answer lives at index 0 of options; the riddle screen shuffles
+// options before display.
+// ====================================================================
+const WORD_POOL = [
+  { text:'שלום',  options:['שלום','שלוש','שולחן','שלשום'] },
+  { text:'אהבה',  options:['אהבה','אבדה','הבעה','אבובה'] },
+  { text:'ילדים', options:['ילדים','ילדות','ידיים','יהלום'] },
+  { text:'חתול',  options:['חתול','חמור','חזיר','חבית'] },
+  { text:'כלב',   options:['כלב','כלי','כבד','כלא'] },
+  { text:'שמש',   options:['שמש','שדה','שיר','שטיח'] },
+  { text:'ירח',   options:['ירח','ירק','ירד','ירוק'] },
+  { text:'בית',   options:['בית','בני','ברק','בהיר'] },
+  { text:'ספר',   options:['ספר','סיר','ספרה','סיפור'] },
+  { text:'פרח',   options:['פרח','פרס','פרצוף','פירה'] },
+  { text:'מים',   options:['מים','מסך','מטר','מטה'] },
+  { text:'חבר',   options:['חבר','חבל','חכם','חיוך'] },
+  { text:'מורה',  options:['מורה','מועד','מבחן','מטרה'] },
+  { text:'גינה',  options:['גינה','גמל','גביע','גזר'] },
+];
+
+// Smart sentence comprehension — questions test understanding, not memory.
+const SENTENCE_POOL = [
+  { text:'השמש זורחת בשמיים',
+    riddle:'מה זורחת?',
+    options:['השמש','הירח','הכוכב','הענן'] },
+  { text:'הילדים שיחקו בגינה',
+    riddle:'מה עשו הילדים?',
+    options:['שיחקו','ישנו','רצו','אכלו'] },
+  { text:'הים גדול וכחול מאוד',
+    riddle:'באיזה צבע הים?',
+    options:['כחול','ירוק','אדום','צהוב'] },
+  { text:'הכלב נבח על החתול',
+    riddle:'על מי נבח הכלב?',
+    options:['החתול','הילד','הכבש','הציפור'] },
+  { text:'אמא בישלה אורז עם עוף',
+    riddle:'מה בישלה אמא?',
+    options:['אורז ועוף','פסטה ובשר','מרק ירקות','סלט וקציצות'] },
+  { text:'דני אכל גלידה בקיץ',
+    riddle:'מתי אכל דני גלידה?',
+    options:['בקיץ','בחורף','בסתיו','באביב'] },
+  { text:'יוסי טייל בהרים עם אבא',
+    riddle:'איפה טייל יוסי?',
+    options:['בהרים','בים','בעיר','במדבר'] },
+  { text:'הציפור עפה גבוה בשמיים',
+    riddle:'איך עפה הציפור?',
+    options:['גבוה','נמוך','לאט','אחורנית'] },
+  { text:'הילדה ציירה תמונה יפה',
+    riddle:'מה ציירה הילדה?',
+    options:['תמונה','בית','פרח','חתול'] },
+  { text:'אבא קנה לי אופניים חדשות',
+    riddle:'מי קנה את האופניים?',
+    options:['אבא','אמא','סבא','חבר'] },
+  { text:'הגינה מלאה בפרחים צבעוניים',
+    riddle:'מה יש בגינה?',
+    options:['פרחים','עצים','ילדים','ספסלים'] },
+  { text:'בוקר טוב לכולם בכיתה',
+    riddle:'למי אמרו בוקר טוב?',
+    options:['לכיתה','להורים','לחברים','לחתול'] },
+];
+
+// Paragraphs tiered by complexity. Easy = literal recall.
+// Medium = synthesis across sentences. Hard = inference / interpretation.
+const PARAGRAPH_POOL_EASY = [
+  { text:['החתול שלי קטן ולבן.','הוא אוהב לשחק עם כדור.','בלילה ישן על המיטה.'],
+    riddle:'איפה ישן החתול?',
+    options:['על המיטה','בגינה','על הספה','במטבח'] },
+  { text:['בחורף יורד גשם רב.','אנחנו לובשים מעיל חם.','בבית שותים שוקו חם.'],
+    riddle:'למה לובשים מעיל בחורף?',
+    options:['כי קר','כי חם','כי גשום','כי יפה'] },
+  { text:['בחלל יש כוכבים רבים.','הירח מקיף את כדור הארץ.','אסטרונאוטים טסים לחלל.'],
+    riddle:'מה עושים האסטרונאוטים?',
+    options:['טסים לחלל','סופרים כוכבים','בונים בית','צובעים הירח'] },
+  { text:['היונה ישבה על הענף.','היא ראתה ילד עם לחם.','הילד פירק את הלחם וזרק לה.'],
+    riddle:'מה זרק הילד ליונה?',
+    options:['לחם','מים','פרח','כדור'] },
+  { text:['בקיץ חם מאוד בעיר.','הילדים הולכים לבריכה.','שוחים ומשחקים במים.'],
+    riddle:'מה עושים הילדים בבריכה?',
+    options:['שוחים ומשחקים','ישנים בשמש','אוכלים גלידה','קוראים ספר'] },
+  { text:['בגינה צומחים פרחים יפים.','דבורים מתעופפות בין הפרחים.','הן אוספות צוף ועושות דבש.'],
+    riddle:'מה הדבורים אוספות?',
+    options:['צוף','עלים','אבק','מים'] },
+  { text:['ביום ההולדת קיבלתי מתנה.','אמא אפתה לי עוגה גדולה.','כל החברים שרו לי "יום הולדת שמח".'],
+    riddle:'מה אמא הכינה ליום ההולדת?',
+    options:['עוגה','עוגיות','גלידה','סלט'] },
+  { text:['רוני קמה בבוקר ופתחה את התריס.','בחוץ זרחה השמש בכל כוחה.','היא חייכה והחליטה ללכת לטייל.'],
+    riddle:'מה גרם לרוני להחליט לטייל?',
+    options:['מזג האוויר היפה','ההזמנה של חברה','האוכל הטעים','הסרט שראתה'] },
+  { text:['ליהי קיבלה גור כלבים קטן.','היא קוראת לו רקס ומאכילה אותו כל יום.','בלילה הוא ישן בקופסה ליד מיטתה.'],
+    riddle:'איך קוראים לכלב של ליהי?',
+    options:['רקס','בני','מקס','דובי'] },
+  { text:['בכיתה שלנו יש לוח חכם.','המורה כותבת עליו את התרגילים.','הילדים מעתיקים למחברת ופותרים.'],
+    riddle:'מה הילדים עושים בכיתה?',
+    options:['מעתיקים ופותרים','מציירים ומשחקים','אוכלים וצוחקים','שרים ורוקדים'] },
+  { text:['הסבתא שלי אופה עוגיות בכל יום שישי.','הריח הטעים מתפשט בכל הבית.','כל המשפחה אוהבת לטעום אותן.'],
+    riddle:'מתי הסבתא אופה עוגיות?',
+    options:['ביום שישי','ביום ראשון','ביום שלישי','ביום חמישי'] },
+  { text:['תמר אוהבת לאסוף קונכיות בים.','בכל קיץ היא מוצאת קונכיות יפות.','שמה אותן בקופסה מיוחדת בבית.'],
+    riddle:'איפה תמר שומרת את הקונכיות?',
+    options:['בקופסה','בכיס','במגירה','בשקית'] },
+];
+
+const PARAGRAPH_POOL_MEDIUM = [
+  { text:['רותי הלכה לחנות לקנות חלב.','בחנות פגשה חברה מהכיתה.','הן דיברו על שיעורי הבית.','בסוף קנתה חלב וחזרה הביתה.'],
+    riddle:'איזה משפט נכון לפי הפיסקה?',
+    options:['רותי פגשה חברה בחנות','רותי קנתה לחם וחזרה','רותי לא דיברה עם איש','רותי הלכה עם אמה'] },
+  { text:['אבא ואני נסענו לגן החיות.','ראינו אריות, פילים וקופים.','הקופים היו מצחיקים מאוד.','בסוף היום היינו עייפים אבל שמחים.'],
+    riddle:'איך הרגישו בסוף היום?',
+    options:['עייפים ושמחים','רעבים וכועסים','משועממים ועצובים','נרגזים ועצבניים'] },
+  { text:['הספרייה היא המקום האהוב עליי.','יש בה אלפי ספרים על מדפים גבוהים.','אני אוהבת לשבת בשקט ולקרוא.','לפעמים שלוש שעות ברצף.'],
+    riddle:'מה הילדה אוהבת לעשות בספרייה?',
+    options:['לקרוא בשקט','לדבר עם חברים','למיין ספרים','לאכול ארוחה'] },
+  { text:['בכל בוקר אני מתעורר בשמונה.','אוכל ארוחת בוקר עם המשפחה.','אחר כך הולך לבית הספר.','חוזר הביתה בארבע אחר הצהריים.'],
+    riddle:'מתי חוזר הילד הביתה?',
+    options:['בארבע אחר הצהריים','בשמונה בבוקר','בעשר בלילה','באמצע היום'] },
+  { text:['ענת אוהבת לרכב על אופניים.','כל יום היא רוכבת לפארק.','בפארק יש מסלול ארוך ויפה.','שם היא פוגשת חברים.'],
+    riddle:'איפה ענת פוגשת חברים?',
+    options:['בפארק','בבית','בחנות','בבית הספר'] },
+  { text:['גיל ניסה ללמוד לשחות.','בהתחלה פחד מהמים העמוקים.','המורה אחזה בידו וצעדה איתו לאט.','אחרי שבוע גיל שחה לבד בכל הבריכה.'],
+    riddle:'איך גיל הצליח להתגבר על הפחד?',
+    options:['בעזרת המורה והתרגול','הוא לא פחד מההתחלה','חבר שלו לימד אותו','הוא קרא ספר על שחייה'] },
+  { text:['סבא שלי גר בכפר רחוק.','בכל חופש אנחנו נוסעים אליו.','הוא מספר סיפורים על העבר.','אני אוהב לשמוע אותם.'],
+    riddle:'מה הילד אוהב לעשות אצל סבא?',
+    options:['לשמוע סיפורים','לשחק בגינה','לאכול ארוחות','לראות טלוויזיה'] },
+  { text:['הכיתה שלנו יצאה לטיול ביער.','כל ילד קיבל תיק עם אוכל ושתייה.','הלכנו במסלול ארוך וראינו ציפורים.','בסוף ישבנו לאכול ולנוח.'],
+    riddle:'מה היה בתיק של כל ילד?',
+    options:['אוכל ושתייה','ספרים ומחברות','בגדים נוספים','כלי נגינה'] },
+  { text:['אורי מצא ארנק נפול ברחוב.','בתוכו היו כסף ותעודה עם שם.','הוא רץ לכתובת שעל התעודה.','הבעלים נתן לו תודה גדולה ושוקולד.'],
+    riddle:'מה אורי החליט לעשות עם הארנק?',
+    options:['להחזיר אותו לבעלים','לקחת את הכסף','לזרוק אותו','לתת אותו למשטרה'] },
+  { text:['בכל ערב חמישי המשפחה שלי מתאספת.','אמא מכינה ארוחה גדולה.','אבא מספר על השבוע שעבר.','אנחנו צוחקים יחד עד מאוחר.'],
+    riddle:'מתי המשפחה מתאספת לארוחה?',
+    options:['בערב חמישי','בכל ערב','בבוקר ראשון','בצהרי שישי'] },
+  { text:['רעות התחילה ללמוד פסנתר בכיתה ב.','בהתחלה היה לה קשה לזכור את התווים.','התרגלה מדי יום שעה שלמה.','היום היא מנגנת יפה בקונצרטים של בית הספר.'],
+    riddle:'מה עזר לרעות לנגן יפה?',
+    options:['התרגול היומי','המורה החדשה','המחנה השנתי','הוריה'] },
+  { text:['במחנה הקיץ פגשתי חברים מכל הארץ.','עשינו פעילויות יחד והצחקנו זה את זה.','בסוף שבועיים נפרדנו עם הבטחות לכתוב.','עד היום אנחנו עדיין חברים.'],
+    riddle:'מה התקיים בין החברים אחרי המחנה?',
+    options:['קשר חברות מתמשך','התחרות מתמדת','שכחה הדדית','כעס וריב'] },
+];
+
+const PARAGRAPH_POOL_HARD = [
+  { text:['היה היה פעם ילד שאהב כוכבים.','כל לילה יצא למרפסת עם משקפת.','הביט בשמיים שעות ארוכות.','חלם להגיע לחלל.','כשגדל הפך לאסטרונאוט.'],
+    riddle:'מה גרם לילד להפוך לאסטרונאוט?',
+    options:['התעניינותו רבת השנים בכוכבים','הוריו הכריחו אותו','הוא ראה סרט מצחיק','חבר שלו הציע לו'] },
+  { text:['דנה הייתה תלמידה חרוצה אך ביישנית.','בכיתה לא הרימה יד אף פעם.','גם כשידעה תשובה נכונה.','יום אחד המורה ביקשה שתענה.','דנה ענתה נכון, וכולם מחאו כפיים.','מאז הרימה יד יותר ויותר.'],
+    riddle:'איך השפיעה תגובת הכיתה על דנה?',
+    options:['גרמה לה להשתתף יותר','גרמה לה להפסיק ללמוד','גרמה לה לעזוב','לא השפיעה עליה'] },
+  { text:['העץ העתיק עמד בכניסה לכפר.','אנשים זקנים אמרו שהוא בן מאות שנים.','בקיץ נתן צל לעוברים ושבים.','בחורף הסתיר ציפורים מהגשם.','הילדים אהבו לטפס על ענפיו.','העץ היה הלב של הכפר.'],
+    riddle:'מדוע מתאר הסיפור את העץ כ"לב של הכפר"?',
+    options:['כי הוא חשוב לכל בעלי החיים והאנשים בכפר','כי הוא נמצא במרכז הכפר','כי הוא הגבוה ביותר','כי הוא הצמיח פירות'] },
+  { text:['יואל מצא חתלתול קטן ברחוב.','החתלתול היה רעב ומפוחד.','יואל לקח אותו הביתה והאכיל אותו.','אמו של יואל הייתה אלרגית לחתולים.','בסוף מצאו לו בית חדש אצל השכן.'],
+    riddle:'למה החתלתול לא נשאר אצל יואל?',
+    options:['כי אמו אלרגית','כי יואל לא אהב אותו','כי השכן ביקש','כי לא היה מקום בבית'] },
+  { text:['הסופר ישב מול הדף הריק שעות.','המילים לא רצו להגיע.','הוא יצא לטיול ביער.','שם פגש ציפור ששרה שיר מיוחד.','חזר הביתה וכתב בלי הפסקה.','הספר שיצא היה הטוב ביותר שלו.'],
+    riddle:'מה עזר לסופר לכתוב את הספר?',
+    options:['הטיול ביער והציפור','חברים ומשפחה','אוכל טעים','שינה ארוכה'] },
+  { text:['מאיה מצאה במגרש משחקים שעון יקר.','היא חיפשה ולא ראתה למי הוא שייך.','החליטה למסור אותו למשטרה.','כעבור שבוע התקשרו אליה הוריו של ילד.','הם הודו לה והעניקו לה ספר במתנה.'],
+    riddle:'מה הסיפור מלמד על מאיה?',
+    options:['היא ילדה ישרה','היא אוהבת ספרים','היא פוחדת מהמשטרה','היא עשירה'] },
+  { text:['בכל בוקר עמית רץ למסעדה של אבא שלו.','אבא היה מבשל מנות לאורחים בעיר.','עמית למד לזהות בריחות את התבלינים.','כשגדל פתח מסעדה משלו.','כל בריח הזכיר לו את אבא.'],
+    riddle:'מדוע עמית פתח מסעדה?',
+    options:['בהשפעת חוויות הילדות אצל אבא','כי לא מצא עבודה אחרת','כי המורה הציע לו','כי היה זקוק לכסף'] },
+  { text:['היה היה פעם זאב צעיר וזריז.','הוא אהב לרוץ אחרי הכבשים בעדר.','הרועה הזקן צחק ולא חשש ממנו.','יום אחד הזאב נפצע ברגלו.','הרועה לקח אותו, חבש את הפצע, ושחרר אותו.','מאז הזאב לא חזר לעדר.'],
+    riddle:'מדוע הזאב לא חזר אל העדר?',
+    options:['בגלל מעשה החסד של הרועה','כי פחד מהרועה','כי לא היה לו רעב','כי עבר ליער אחר'] },
+  { text:['ירון רצה אופניים חדשים יותר מכל דבר.','הוא חסך מכספו במשך שנה שלמה.','בכל פעם שראה משחק יקר, ויתר עליו.','כשהגיע יום הולדתו הצליח לקנות אופניים חדשים.','כשרכב עליהן הרגיש שהאופניים שלו באמת.'],
+    riddle:'מה הסיפור מלמד על ערך הרכישה של ירון?',
+    options:['חיכיתי וחסכתי לדבר ויתרתי על דברים אחרים','כל מתנה שווה את אותו הדבר','אופניים חדשות תמיד מאושרות','כסף הוא הדבר החשוב ביותר'] },
+  { text:['בעבר רקפת שלחה הודעה כועסת לחברתה.','החברה לא ענתה לה במשך ימים.','רקפת הבינה שאולי הגזימה.','התקשרה והתנצלה בכנות.','החברה הסכימה לסלוח, וההידידות חזרה אך הייתה זהירה יותר.'],
+    riddle:'מה ניתן ללמוד מהסיפור על מילים?',
+    options:['מילים יכולות לפצוע גם אם מתנצלים אחר כך','עדיף לא לדבר אף פעם','חברות אמיתית נשארת תמיד','התנצלות מוחקת הכל'] },
+  { text:['במשך שנים יוסי חלם לכתוב ספר.','כל לילה רשם רעיונות במחברת קטנה.','כשפרש לפנסיה החל לכתוב סוף סוף.','אחרי שנתיים פרסם את הספר הראשון שלו.','הוא אמר: "החלום שלי לא נדחה, רק חיכה לזמנו".'],
+    riddle:'מה יוסי לימד אותנו על חלומות?',
+    options:['חלומות יכולים להמתין לזמנם הנכון','אסור לחלום','עדיף לוותר על חלומות','חלומות הם רק להוויית הנעורים'] },
+];
+
+// Theme = (background scene, brick palette name, time bonus)
+// Each playthrough every stage gets a different theme so visuals rotate.
+const THEMES = [
+  { scene:'space',  palette:'orange' },
+  { scene:'ocean',  palette:'cyan'   },
+  { scene:'forest', palette:'green'  },
+  { scene:'sunset', palette:'purple' },
+  { scene:'desert', palette:'gold'   },
+];
+
+// 7-row palettes per theme (row 0 = top brick row → row 6 = bottom).
+const PALETTES = {
+  orange: [
+    ['#ff8a3d','#ffd28a','#aa4a1a','#3a1408'],
+    ['#ffa040','#ffd28a','#bb551a','#3a1408'],
+    ['#f06a26','#ffb87a','#8a3a16','#3a1408'],
+    ['#e44a1a','#ff9a5c','#7a2a10','#2a0808'],
+    ['#c8341a','#ff7a4a','#5a1a0a','#2a0808'],
+    ['#a82418','#e85a30','#4a1208','#1a0404'],
+    ['#882018','#c8442a','#3a0808','#0a0202'],
+  ],
+  cyan: [
+    ['#5ce5ff','#b0f5ff','#1a8aa0','#0a3a48'],
+    ['#3ad0eb','#90e0f0','#1a7a90','#0a3038'],
+    ['#2ab8d6','#80d0e0','#1a6a80','#0a2830'],
+    ['#1aa0c0','#70c0d0','#1a5a70','#0a2028'],
+    ['#1a82aa','#60b0c0','#1a4a60','#0a181f'],
+    ['#1a6494','#50a0b0','#1a3a50','#0a141a'],
+    ['#1a487e','#4090a0','#1a2a40','#0a0e14'],
+  ],
+  green: [
+    ['#5cf08a','#b0ffba','#1a9a4a','#0a4020'],
+    ['#3aca70','#90eb9a','#1a7a30','#0a3818'],
+    ['#2ab060','#80d68a','#1a6a28','#0a3014'],
+    ['#1a9650','#70c07a','#1a5a20','#0a2810'],
+    ['#1a7c40','#60aa6a','#1a4a18','#0a200c'],
+    ['#1a6230','#50945a','#1a3a10','#0a1808'],
+    ['#1a4820','#407e4a','#1a2a08','#0a1004'],
+  ],
+  purple: [
+    ['#c060ff','#e0b0ff','#6a1a9a','#2a0a40'],
+    ['#a04ade','#d0a0ff','#5a1a8a','#28083a'],
+    ['#903aca','#c090eb','#4a1a7a','#240832'],
+    ['#802ab0','#b080d6','#3a1a6a','#20062a'],
+    ['#701a96','#a070c0','#2a1a5a','#1c0622'],
+    ['#601a7c','#9060aa','#1a1a4a','#180420'],
+    ['#501a62','#805094','#1a1a3a','#14041a'],
+  ],
+  gold: [
+    ['#ffe25c','#fff5b0','#aa8a1a','#5a3a0a'],
+    ['#ebc83a','#f0e090','#9a7a1a','#4a3008'],
+    ['#d6a82a','#e0d080','#8a6a1a','#3a2806'],
+    ['#c08c1a','#d0c070','#7a5a18','#2a2004'],
+    ['#aa781a','#c0b060','#6a4a14','#1f1804'],
+    ['#94661a','#b09850','#5a3a10','#181004'],
+    ['#7e541a','#a08440','#4a2a08','#100804'],
+  ],
+};
+
+// ====================================================================
+// STAGE PICKER — produce 9 / 6 / 3 stages depending on starting tier.
+// Themes shuffle so each stage looks visually different from the next.
+// ====================================================================
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function sample(arr, n) { return shuffle(arr).slice(0, n); }
+
+function pickStages(startFrom) {
+  // 20-stage layout for beginner: 3 words + 3 sentences + 14 paragraphs.
+  // Intermediate skips words; advanced is paragraphs only. Paragraphs progress easy → medium → hard.
+  const spaceTheme = THEMES.find(t => t.scene === 'space');
+  const others     = shuffle(THEMES.filter(t => t.scene !== 'space'));
+  const themeOrder = [spaceTheme, ...others];
+  const stages = [];
+  let t = 0;
+  const themeFor = () => themeOrder[t++ % themeOrder.length];
+
+  if (startFrom <= 0) {
+    for (const w of sample(WORD_POOL, 3)) {
+      const th = themeFor();
+      stages.push({
+        type: 'word', text: w.text,
+        riddle: 'איזו מילה שברת?',
+        options: w.options, answer: 0,
+        timeLimit: 130,
+        scene: th.scene, palette: th.palette,
+      });
+    }
+  }
+  if (startFrom <= 3) {
+    for (const s of sample(SENTENCE_POOL, 3)) {
+      const th = themeFor();
+      stages.push({
+        type: 'sentence', text: s.text,
+        riddle: s.riddle,
+        options: s.options, answer: 0,
+        timeLimit: 180,
+        scene: th.scene, palette: th.palette,
+      });
+    }
+  }
+  // 14 paragraphs in difficulty-ascending order (5 easy → 5 medium → 4 hard)
+  if (startFrom <= 6) {
+    const paragraphs = [
+      ...sample(PARAGRAPH_POOL_EASY,   Math.min(5, PARAGRAPH_POOL_EASY.length)),
+      ...sample(PARAGRAPH_POOL_MEDIUM, Math.min(5, PARAGRAPH_POOL_MEDIUM.length)),
+      ...sample(PARAGRAPH_POOL_HARD,   Math.min(4, PARAGRAPH_POOL_HARD.length)),
+    ];
+    for (const p of paragraphs) {
+      const th = themeFor();
+      stages.push({
+        type: 'paragraph', text: p.text,
+        riddle: p.riddle,
+        options: p.options, answer: 0,
+        timeLimit: 230,
+        scene: th.scene, palette: th.palette,
+      });
+    }
+  }
+  return stages;
+}
+
+// ====================================================================
+// BRICK BUILDER
+// Render Hebrew text large, sample alpha into chunky brick grid.
+// Each brick is BRICK_INNER × BRICK_INNER with BRICK_GAP space around.
+// Stride = BRICK_INNER + BRICK_GAP.
+// ====================================================================
+// Build a stage: produces a uniform brick wall + a pre-rendered text canvas
+// drawn behind it. As bricks break, the text reveals through.
+function buildStage(stage) {
+  const FONT_FAMILY = 'Heebo, "Arial Black", Arial, sans-serif';
+
+  // Brick wall geometry per stage type
+  const cfg = {
+    word:      { cols: 12, rows: 4, brickW: 36, brickH: 26, fontPx: 96 },
+    sentence:  { cols: 16, rows: 5, brickW: 30, brickH: 22, fontPx: 50 },
+    paragraph: { cols: 18, rows: 7, brickW: 26, brickH: 18, fontPx: 28 },
+  }[stage.type];
+  const gap = 2;
+  const strideX = cfg.brickW + gap;
+  const strideY = cfg.brickH + gap;
+  const wallW = cfg.cols * strideX - gap;
+  const wallH = cfg.rows * strideY - gap;
+
+  // Center wall in upper portion of play area (with comfortable top margin)
+  const startX = Math.round(PLAY_X + (PLAY_W - wallW) / 2);
+  const startY = Math.round(PLAY_Y + 40);
+
+  // Build brick array
+  const bricks = [];
+  for (let r = 0; r < cfg.rows; r++) {
+    for (let c = 0; c < cfg.cols; c++) {
+      bricks.push({
+        x: startX + c * strideX,
+        y: startY + r * strideY,
+        w: cfg.brickW, h: cfg.brickH,
+        alive: true, shake: 0,
+        row: r,
+      });
+    }
+  }
+
+  // Pre-render the text behind the wall
+  const lines = stage.type === 'paragraph' ? stage.text : [stage.text];
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.direction = 'rtl';
+  let fontPx = cfg.fontPx;
+  function widestAt(px) {
+    probe.font = `900 ${px}px ${FONT_FAMILY}`;
+    return Math.max(...lines.map(L => probe.measureText(L).width));
+  }
+  // Shrink font until it fits in the wall area (with 8px padding)
+  while (widestAt(fontPx) > wallW - 16 && fontPx > 12) fontPx -= 1;
+
+  // Vertical fit: shrink if total text height > wallH
+  function totalTextHeight(px) { return Math.ceil(px * 1.25) * lines.length; }
+  while (totalTextHeight(fontPx) > wallH - 8 && fontPx > 12) fontPx -= 1;
+
+  const textCanvas = document.createElement('canvas');
+  textCanvas.width  = wallW;
+  textCanvas.height = wallH;
+  const tc = textCanvas.getContext('2d');
+  tc.imageSmoothingEnabled = true;
+  tc.font = `900 ${fontPx}px ${FONT_FAMILY}`;
+  tc.fillStyle = '#ffe580';
+  tc.textAlign = 'center';
+  tc.textBaseline = 'middle';
+  tc.direction = 'rtl';
+
+  const lineHeight = Math.ceil(fontPx * 1.25);
+  const startTextY = wallH / 2 - (lineHeight * (lines.length - 1)) / 2;
+  for (let i = 0; i < lines.length; i++) {
+    tc.fillText(lines[i], wallW / 2, startTextY + i * lineHeight);
+  }
+
+  // Mark each brick as covering-text or decorative.
+  // Bricks that overlap any lit text pixels are required for stage completion;
+  // the rest get auto-cleared on stage-clear for visual finish.
+  const tData = tc.getImageData(0, 0, wallW, wallH).data;
+  for (const b of bricks) {
+    const localX = b.x - startX;
+    const localY = b.y - startY;
+    let lit = 0;
+    for (let dy = 0; dy < b.h; dy += 2) {
+      for (let dx = 0; dx < b.w; dx += 2) {
+        const px = localX + dx, py = localY + dy;
+        if (px < 0 || px >= wallW || py < 0 || py >= wallH) continue;
+        if (tData[(py * wallW + px) * 4 + 3] > 100) { lit++; if (lit > 1) break; }
+      }
+      if (lit > 1) break;
+    }
+    b.coversText = lit > 1;
+  }
+
+  return { bricks, textCanvas, textX: startX, textY: startY };
+}
+
+// ====================================================================
+// SCENE DECORATIONS — pre-generated random data per scene type
+// ====================================================================
+function genStars(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.floor(Math.random() * PLAY_W),
+    y: Math.floor(Math.random() * PLAY_H),
+    big: Math.random() < 0.18,
+    tw: Math.random() * Math.PI * 2,
+    twSpeed: 0.6 + Math.random() * 1.4,
+  });
+  return arr;
+}
+function genGalaxy() {
+  const out = [];
+  const cx = 70, cy = 70;
+  for (let i = 0; i < 80; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const rad = 4 + Math.random() * 30;
+    out.push({
+      x: cx + Math.round(Math.cos(a) * rad * 1.6),
+      y: cy + Math.round(Math.sin(a) * rad * 0.5),
+      c: Math.random() < 0.5 ? '#ff5a8a' : '#9a4ade',
+    });
+  }
+  return out;
+}
+function genBubbles(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.floor(Math.random() * PLAY_W),
+    y: Math.floor(Math.random() * PLAY_H),
+    r: 2 + Math.floor(Math.random() * 4),
+    speed: 8 + Math.random() * 16,
+  });
+  return arr;
+}
+function genFireflies(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.floor(Math.random() * PLAY_W),
+    y: 30 + Math.floor(Math.random() * (PLAY_H - 60)),
+    tw: Math.random() * Math.PI * 2,
+    twSpeed: 1 + Math.random() * 2,
+    drift: Math.random() * Math.PI * 2,
+  });
+  return arr;
+}
+function genTrees(n) {
+  const arr = [];
+  const span = PLAY_W / n;
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.floor(span * (i + 0.5) + (Math.random() - 0.5) * span * 0.7),
+    h: 60 + Math.floor(Math.random() * 80),
+    w: 14 + Math.floor(Math.random() * 8),
+  });
+  return arr;
+}
+// Desert: tumbleweeds rolling, drifting dust particles, scattered cacti.
+function genTumbleweeds(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x:        Math.random() * PLAY_W,
+    yBase:    PLAY_H - 30 - Math.random() * 20,    // stays near the ground
+    speed:    18 + Math.random() * 18,
+    bouncePh: Math.random() * Math.PI * 2,
+    spinPh:   Math.random() * Math.PI * 2,
+    r:        7 + Math.floor(Math.random() * 4),   // tumbleweed radius
+  });
+  return arr;
+}
+function genDustMotes(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x:     Math.random() * PLAY_W,
+    y:     30 + Math.random() * (PLAY_H - 80),
+    speed: 6 + Math.random() * 14,
+    size:  Math.random() < 0.7 ? 1 : 2,
+    alpha: 0.35 + Math.random() * 0.3,
+  });
+  return arr;
+}
+function genCacti(n) {
+  const arr = [];
+  const span = PLAY_W / n;
+  for (let i = 0; i < n; i++) arr.push({
+    x:    Math.floor(span * (i + 0.5) + (Math.random() - 0.5) * span * 0.6),
+    h:    24 + Math.floor(Math.random() * 22),     // saguaro height
+    arms: Math.random() < 0.6 ? 2 : (Math.random() < 0.5 ? 1 : 0),
+  });
+  return arr;
+}
+function genMesas(n) {
+  const arr = [];
+  const span = PLAY_W / n;
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.floor(span * (i + 0.5) + (Math.random() - 0.5) * span * 0.4),
+    h: 22 + Math.floor(Math.random() * 26),
+    w: 50 + Math.floor(Math.random() * 60),
+  });
+  return arr;
+}
+function genClouds(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.floor(Math.random() * PLAY_W),
+    y: 10 + Math.floor(Math.random() * 80),
+    w: 30 + Math.floor(Math.random() * 50),
+    speed: 4 + Math.random() * 8,
+  });
+  return arr;
+}
+function genBirds(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.random() * PLAY_W,
+    y: 30 + Math.random() * 100,
+    speed: 22 + Math.random() * 18,
+    flapPhase: Math.random() * Math.PI * 2,
+    flapSpeed: 6 + Math.random() * 4,
+  });
+  return arr;
+}
+function genLeaves(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    x: Math.random() * PLAY_W,
+    y: Math.random() * PLAY_H,
+    fallSpeed: 12 + Math.random() * 14,
+    swayPhase: Math.random() * Math.PI * 2,
+    swaySpeed: 0.6 + Math.random() * 0.7,
+    color: ['#d8a04a','#c87830','#9a4a18','#a8602a','#e8c060'][Math.floor(Math.random()*5)],
+  });
+  return arr;
+}
+function genMistBands(n) {
+  const arr = [];
+  for (let i = 0; i < n; i++) arr.push({
+    y: Math.random() * PLAY_H * 0.7 + PLAY_H * 0.25,
+    w: 100 + Math.random() * 200,
+    x: Math.random() * PLAY_W,
+    speed: 5 + Math.random() * 8,
+    alpha: 0.04 + Math.random() * 0.05,
+  });
+  return arr;
+}
+const decorations = {
+  space:  { stars: genStars(80), galaxy: genGalaxy() },
+  ocean:  { bubbles: genBubbles(35) },
+  forest: { stars: genStars(30), trees: genTrees(6), fireflies: genFireflies(22),
+            leaves: genLeaves(18), mist: genMistBands(4) },
+  sunset: { clouds: genClouds(7), birds: genBirds(4) },
+  desert: { tumbleweeds: genTumbleweeds(4), dust: genDustMotes(28),
+            cacti: genCacti(5), mesas: genMesas(3) },
+};
+// Legacy shared list of stars (kept for any leftover refs to drawSpaceBg's signature)
+const stars  = decorations.space.stars;
+const galaxy = decorations.space.galaxy;
+
+// ====================================================================
+// GAME STATE
+// ====================================================================
+const state = {
+  stage: 0, score: 0, lives: 3,
+  stages: [],
+  speedLevel: 0,                // increments per stage cleared, decrements per life lost
+  bricks: [], totalBricks: 0, brickHits: 0,
+  coverBricksTotal: 0,          // bricks that cover the hidden text — these are what matters
+  coverBricksLeft: 0,
+  textCanvas: null, textX: 0, textY: 0,
+  ball: { x: 0, y: 0, vx: 0, vy: 0, attached: true, trail: [] },
+  paddle: { x: 0, y: 0, w: PADDLE_W, h: PADDLE_H },
+  particles: [],
+  timeLeft: 0,
+  running: false,
+  flash: 0,
+};
+const MAX_LIVES = 5;
+// Each stage cleared bumps the ball ~9% faster. Lives lost back off one level.
+function getStageSpeed() { return BALL_SPEED * (1 + state.speedLevel * 0.09); }
+let leftKey = false, rightKey = false;
+
+function startGame(startFrom = 0) {
+  // Pick a fresh, randomized set of stages for this playthrough
+  state.stages = pickStages(startFrom);
+  state.stage = 0;
+  state.score = 0;
+  state.lives = 3;
+  state.speedLevel = 0;
+  initStage();
+  state.running = true;
+}
+function initStage() {
+  const s = state.stages[state.stage];
+  const built = buildStage(s);
+  state.bricks = built.bricks;
+  state.textCanvas = built.textCanvas;
+  state.textX = built.textX;
+  state.textY = built.textY;
+  state.totalBricks = state.bricks.length;
+  state.brickHits = 0;
+  state.coverBricksTotal = state.bricks.filter(b => b.coversText).length;
+  state.coverBricksLeft  = state.coverBricksTotal;
+  state.timeLeft = s.timeLimit;
+  state.particles = [];
+  resetBall();
+}
+function resetBall() {
+  state.paddle.w = PADDLE_W;
+  state.paddle.x = PLAY_X + (PLAY_W - state.paddle.w) / 2;
+  state.paddle.y = PLAY_Y + PLAY_H - 36;
+  state.ball.x = state.paddle.x + state.paddle.w / 2;
+  state.ball.y = state.paddle.y - BALL_R - 1;
+  state.ball.vx = 0; state.ball.vy = 0;
+  state.ball.attached = true;
+  state.ball.trail = [];
+}
+function launchBall() {
+  if (!state.ball.attached) return;
+  state.ball.attached = false;
+  const angle = -Math.PI/2 + (Math.random() * 0.5 - 0.25);
+  const sp = getStageSpeed();
+  state.ball.vx = Math.cos(angle) * sp;
+  state.ball.vy = Math.sin(angle) * sp;
+  sound.click();
+}
+function loseLife() {
+  state.lives--;
+  state.speedLevel = Math.max(0, state.speedLevel - 1);   // back off difficulty
+  sound.lose();
+  if (state.lives <= 0) gameOver();
+  else resetBall();
+}
+function gameOver() {
+  state.running = false;
+  document.getElementById('finalScore').textContent = `הניקוד שלך: ${state.score}`;
+  document.getElementById('gameOverScreen').classList.add('active');
+}
+function stageCleared() {
+  if (!state.running) return;        // guard against double-firing
+  state.running = false;
+  // Auto-explode any leftover decorative bricks so the finish feels complete.
+  for (const b of state.bricks) {
+    if (b.alive) {
+      b.alive = false;
+      spawnParticles(b.x + b.w/2, b.y + b.h/2);
+    }
+  }
+  sound.clear();
+  state.score += 100 + Math.max(0, Math.floor(state.timeLeft) * 2);
+  state.speedLevel++;                // next stage will be a bit faster
+  setTimeout(showRiddle, 800);
+}
+function showRiddle() {
+  const s = state.stages[state.stage];
+  const screen = document.getElementById('riddleScreen');
+  const title  = document.getElementById('riddleTitle');
+  const reveal = document.getElementById('revealText');
+  const q      = document.getElementById('riddleQ');
+  const opts   = document.getElementById('riddleOptions');
+  const result = document.getElementById('riddleResult');
+
+  title.textContent = s.type === 'word' ? 'שברת מילה!'
+                    : s.type === 'sentence' ? 'שברת משפט!' : 'שברת פיסקה!';
+  reveal.style.visibility = 'hidden'; reveal.textContent = '';
+  q.textContent = s.riddle; result.textContent = '';
+  opts.innerHTML = '';
+
+  // Shuffle options (track which is correct)
+  const ord = s.options.map((opt, i) => ({ opt, isAnswer: i === s.answer }));
+  for (let i = ord.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ord[i], ord[j]] = [ord[j], ord[i]];
+  }
+  ord.forEach(entry => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = entry.opt;
+    btn.onclick = () => {
+      Array.from(opts.children).forEach(b => b.disabled = true);
+      reveal.style.visibility = 'visible';
+      reveal.textContent = Array.isArray(s.text) ? s.text.join('  ') : s.text;
+      if (entry.isAnswer) {
+        btn.classList.add('correct');
+        state.score += 50; sound.correct();
+        result.textContent = 'נכון! +50 נקודות';
+        result.style.color = '#5cff7a';
+        setTimeout(nextStage, 1700);
+      } else {
+        btn.classList.add('wrong');
+        Array.from(opts.children).forEach(b => {
+          if (b.textContent === s.options[s.answer]) b.classList.add('correct');
+        });
+        sound.wrong();
+        result.textContent = 'לא נכון... התשובה הנכונה מסומנת.';
+        result.style.color = '#ff7a5a';
+        setTimeout(nextStage, 2400);
+      }
+    };
+    opts.appendChild(btn);
+  });
+  screen.classList.add('active');
+}
+function nextStage() {
+  document.getElementById('riddleScreen').classList.remove('active');
+  state.stage++;
+  if (state.stage >= state.stages.length) {
+    document.getElementById('winScore').textContent = `ניקוד סופי: ${state.score}`;
+    document.getElementById('winScreen').classList.add('active');
+    return;
+  }
+  // Bonus life for advancing to next stage (cap at MAX_LIVES)
+  if (state.lives < MAX_LIVES) {
+    state.lives++;
+    // Brief life-up chime, distinct from the riddle-correct sound
+    setTimeout(() => { tone(880, 0.08, 'triangle', 0.16); }, 50);
+    setTimeout(() => { tone(1320, 0.12, 'triangle', 0.16); }, 150);
+  }
+  initStage(); state.running = true;
+}
+
+// ====================================================================
+// INPUT — arrow keys ONLY
+// ====================================================================
+window.addEventListener('keydown', (e) => {
+  ensureAudio();
+  if (e.key === 'ArrowLeft')  { leftKey  = true;  e.preventDefault(); }
+  if (e.key === 'ArrowRight') { rightKey = true;  e.preventDefault(); }
+  if (e.key === ' ' || e.code === 'Space') {
+    if (state.running && state.ball.attached) launchBall();
+    e.preventDefault();
+  }
+  if (e.key === 'm' || e.key === 'M') setMuted(!muted);
+});
+window.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft')  leftKey  = false;
+  if (e.key === 'ArrowRight') rightKey = false;
+});
+// Sound icon click region (top-right of header)
+cv.addEventListener('click', (e) => {
+  const rect = cv.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (W / rect.width);
+  const py = (e.clientY - rect.top) * (H / rect.height);
+  if (px > W - 38 && px < W - 8 && py > 8 && py < 38) {
+    setMuted(!muted); sound.click();
+  }
+});
+
+// ====================================================================
+// GAME LOOP
+// ====================================================================
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.033, (now - lastT) / 1000);
+  lastT = now;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+function update(dt) {
+  for (const s of stars) s.tw += dt * s.twSpeed;
+  for (const p of state.particles) {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy += 280 * dt; p.life -= dt;
+  }
+  state.particles = state.particles.filter(p => p.life > 0);
+  if (state.flash > 0) state.flash -= dt;
+
+  if (!state.running) return;
+
+  // Paddle
+  const PADDLE_SPEED = 540;
+  if (leftKey)  state.paddle.x -= PADDLE_SPEED * dt;
+  if (rightKey) state.paddle.x += PADDLE_SPEED * dt;
+  if (state.paddle.x < PLAY_X) state.paddle.x = PLAY_X;
+  if (state.paddle.x + state.paddle.w > PLAY_X + PLAY_W)
+    state.paddle.x = PLAY_X + PLAY_W - state.paddle.w;
+
+  // Ball
+  if (state.ball.attached) {
+    state.ball.x = state.paddle.x + state.paddle.w / 2;
+    state.ball.y = state.paddle.y - BALL_R - 1;
+  } else {
+    const sp = Math.hypot(state.ball.vx, state.ball.vy);
+    const maxSp = BALL_SPEED * 1.55;
+    if (sp > maxSp) {
+      state.ball.vx = state.ball.vx / sp * maxSp;
+      state.ball.vy = state.ball.vy / sp * maxSp;
+    }
+    state.ball.trail.push({ x: state.ball.x, y: state.ball.y });
+    if (state.ball.trail.length > 8) state.ball.trail.shift();
+
+    // Substep — avoid tunneling through small bricks
+    const minBrick = state.stages[state.stage].type === 'paragraph' ? 6 : 10;
+    const steps = Math.max(1, Math.ceil(sp * dt / (minBrick * 0.7)));
+    const stepDt = dt / steps;
+    for (let st = 0; st < steps; st++) {
+      state.ball.x += state.ball.vx * stepDt;
+      state.ball.y += state.ball.vy * stepDt;
+
+      if (state.ball.x - BALL_R < PLAY_X) {
+        state.ball.x = PLAY_X + BALL_R;
+        state.ball.vx = Math.abs(state.ball.vx); sound.wall();
+      }
+      if (state.ball.x + BALL_R > PLAY_X + PLAY_W) {
+        state.ball.x = PLAY_X + PLAY_W - BALL_R;
+        state.ball.vx = -Math.abs(state.ball.vx); sound.wall();
+      }
+      if (state.ball.y - BALL_R < PLAY_Y) {
+        state.ball.y = PLAY_Y + BALL_R;
+        state.ball.vy = Math.abs(state.ball.vy); sound.wall();
+      }
+      // Paddle
+      if (state.ball.vy > 0
+          && state.ball.y + BALL_R >= state.paddle.y
+          && state.ball.y + BALL_R <= state.paddle.y + state.paddle.h + 4
+          && state.ball.x >= state.paddle.x - 2
+          && state.ball.x <= state.paddle.x + state.paddle.w + 2) {
+        state.ball.y = state.paddle.y - BALL_R - 1;
+        const hitPos = (state.ball.x - state.paddle.x) / state.paddle.w;
+        const angle = (-Math.PI/2) + (hitPos - 0.5) * Math.PI * 0.65;
+        const speed = Math.max(BALL_SPEED, sp);
+        state.ball.vx = Math.cos(angle) * speed;
+        state.ball.vy = Math.sin(angle) * speed;
+        sound.paddle();
+      }
+      // Bricks
+      for (const b of state.bricks) {
+        if (!b.alive) continue;
+        if (state.ball.x + BALL_R > b.x && state.ball.x - BALL_R < b.x + b.w &&
+            state.ball.y + BALL_R > b.y && state.ball.y - BALL_R < b.y + b.h) {
+          const cx = b.x + b.w/2, cy = b.y + b.h/2;
+          const ddx = state.ball.x - cx, ddy = state.ball.y - cy;
+          const overlapX = (b.w/2 + BALL_R) - Math.abs(ddx);
+          const overlapY = (b.h/2 + BALL_R) - Math.abs(ddy);
+          if (overlapX < overlapY) {
+            state.ball.vx = ddx > 0 ? Math.abs(state.ball.vx) : -Math.abs(state.ball.vx);
+            state.ball.x += ddx > 0 ? overlapX : -overlapX;
+          } else {
+            state.ball.vy = ddy > 0 ? Math.abs(state.ball.vy) : -Math.abs(state.ball.vy);
+            state.ball.y += ddy > 0 ? overlapY : -overlapY;
+          }
+          b.alive = false;
+          state.brickHits++;
+          if (b.coversText) state.coverBricksLeft--;
+          state.score += b.coversText ? 12 : 6;   // text-bricks worth more
+          spawnParticles(b.x + b.w/2, b.y + b.h/2);
+          for (const o of state.bricks) {
+            if (o.alive && Math.abs(o.x - b.x) < b.w * 1.3 && Math.abs(o.y - b.y) < b.h * 1.3) {
+              o.shake = 0.15;
+            }
+          }
+          sound.brick();
+          state.flash = 0.05;
+          break;
+        }
+      }
+    }
+    for (const b of state.bricks) if (b.shake > 0) b.shake = Math.max(0, b.shake - dt);
+
+    if (state.ball.y - BALL_R > PLAY_Y + PLAY_H + 10) loseLife();
+    // Stage clears as soon as the text is fully revealed (no covering bricks left).
+    // Decorative bricks keep showing until then but don't block progression.
+    if (state.coverBricksTotal > 0 && state.coverBricksLeft <= 0) stageCleared();
+  }
+
+  // Timer
+  state.timeLeft -= dt;
+  if (state.timeLeft <= 0) {
+    state.timeLeft = state.stages[state.stage].timeLimit;
+    loseLife();
+  }
+}
+function spawnParticles(x, y) {
+  const colors = ['#ff8a3d','#ffb03a','#ff5a2a','#ffd24a'];
+  for (let i = 0; i < 7; i++) {
+    state.particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 220,
+      vy: (Math.random() - 0.7) * 220,
+      life: 0.5 + Math.random() * 0.4,
+      c: colors[Math.floor(Math.random() * colors.length)],
+      size: 3 + Math.floor(Math.random() * 3),
+    });
+  }
+}
+
+// ====================================================================
+// DRAW
+// ====================================================================
+function draw() {
+  // Outer fill
+  ctx.fillStyle = '#1a0f3a';
+  ctx.fillRect(0, 0, W, H);
+  drawFrame();
+  drawHeader();
+  drawSidebar();
+  drawFooter();
+
+  // Play area (clipped)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+  ctx.clip();
+  drawSceneBg();
+  // Text BEHIND the brick wall — bricks gradually reveal it
+  if (state.textCanvas) {
+    // Subtle dark plate behind the text so it pops once revealed
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(state.textX - 4, state.textY - 4, state.textCanvas.width + 8, state.textCanvas.height + 8);
+    ctx.drawImage(state.textCanvas, state.textX, state.textY);
+  }
+  drawBricks();
+  drawBall();
+  drawPaddle();
+  drawParticles();
+  if (state.flash > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${state.flash * 5})`;
+    ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+  }
+  ctx.restore();
+}
+function drawFrame() {
+  // Outer purple double-line frame
+  ctx.fillStyle = '#6a4ab8';
+  ctx.fillRect(0, 0, W, FRAME);
+  ctx.fillRect(0, H - FRAME, W, FRAME);
+  ctx.fillRect(0, 0, FRAME, H);
+  ctx.fillRect(W - FRAME, 0, FRAME, H);
+  ctx.fillStyle = '#3a2870';
+  ctx.fillRect(FRAME, FRAME, W - FRAME * 2, 2);
+  ctx.fillRect(FRAME, H - FRAME - 2, W - FRAME * 2, 2);
+  ctx.fillRect(FRAME, FRAME, 2, H - FRAME * 2);
+  ctx.fillRect(W - FRAME - 2, FRAME, 2, H - FRAME * 2);
+}
+function drawHeader() {
+  // Header panel
+  ctx.fillStyle = '#0e0828';
+  ctx.fillRect(FRAME + 2, FRAME + 2, W - 2 * (FRAME + 2), HEADER_H - 4);
+
+  // Dotted bottom divider
+  ctx.fillStyle = '#3a2870';
+  for (let x = FRAME + 6; x < W - FRAME - 6; x += 4) {
+    ctx.fillRect(x, HEADER_H - 1, 2, 2);
+  }
+
+  ctx.textBaseline = 'middle';
+
+  // Stage label LEFT (matching reference image)
+  ctx.fillStyle = '#ff8a3d';
+  ctx.font = '900 14px Heebo, Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('שלב', 14, 18);
+  ctx.fillStyle = '#ffd966';
+  ctx.font = '900 16px Heebo, Arial, sans-serif';
+  ctx.fillText(`${state.stage + 1}`, 14, 36);
+
+  // Title CENTER
+  ctx.fillStyle = '#ffd966';
+  ctx.font = '900 24px Heebo, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('שבור את המילה', W / 2, HEADER_H / 2 + 2);
+
+  // Hearts (up to MAX_LIVES = 5). Tighter spacing to fit.
+  for (let i = 0; i < MAX_LIVES; i++) {
+    drawHeart(W - 130 + i * 18, HEADER_H / 2, i < state.lives);
+  }
+  // Sound icon FAR RIGHT
+  drawSoundIcon(W - 26, HEADER_H / 2, !muted);
+}
+function drawHeart(cx, cy, full) {
+  const fill = full ? '#ff4a5a' : '#3a2440';
+  const edge = full ? '#aa1a2a' : '#3a2440';
+  // 14px heart pixel art
+  const pat = [
+    '.XX.XX.',
+    'XXXXXXX',
+    'XXXXXXX',
+    'XXXXXXX',
+    '.XXXXX.',
+    '..XXX..',
+    '...X...',
+  ];
+  const pp = 2;
+  for (let r = 0; r < pat.length; r++) {
+    for (let c = 0; c < pat[r].length; c++) {
+      if (pat[r][c] === 'X') {
+        ctx.fillStyle = fill;
+        ctx.fillRect(cx - 7 + c * pp, cy - 7 + r * pp, pp, pp);
+      }
+    }
+  }
+  if (full) {
+    // Subtle right-bottom shadow
+    ctx.fillStyle = edge;
+    ctx.fillRect(cx + 2, cy + 0, pp, pp);
+    ctx.fillRect(cx + 4, cy - 4, pp, pp);
+  }
+}
+function drawSoundIcon(cx, cy, on) {
+  const col = on ? '#ffd966' : '#5a4a8a';
+  // Speaker body
+  ctx.fillStyle = col;
+  ctx.fillRect(cx - 9, cy - 4, 4, 8);     // back
+  ctx.fillRect(cx - 5, cy - 6, 3, 12);    // mid
+  ctx.fillRect(cx - 2, cy - 8, 3, 16);    // front
+  if (on) {
+    // Sound waves
+    ctx.fillStyle = col;
+    ctx.fillRect(cx + 3, cy - 5, 2, 2);
+    ctx.fillRect(cx + 3, cy + 3, 2, 2);
+    ctx.fillRect(cx + 6, cy - 7, 2, 2);
+    ctx.fillRect(cx + 6, cy + 5, 2, 2);
+    ctx.fillRect(cx + 9, cy - 1, 2, 2);
+  } else {
+    // X mark
+    ctx.fillStyle = '#ff5a4a';
+    ctx.fillRect(cx + 3, cy - 6, 12, 2);
+    ctx.fillRect(cx + 3, cy + 4, 12, 2);
+    ctx.fillRect(cx + 6, cy - 2, 6, 4);
+  }
+}
+function drawSidebar() {
+  const sx = W - SIDEBAR_W + 4;
+  const sy = HEADER_H + 4;
+  const sw = SIDEBAR_W - 12;
+  const sh = H - HEADER_H - FOOTER_H - 8;
+
+  ctx.fillStyle = '#0e0828';
+  ctx.fillRect(sx, sy, sw, sh);
+  // Border
+  ctx.strokeStyle = '#3a2870';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(sx + 1, sy + 1, sw - 2, sh - 2);
+
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+
+  let cy = sy + 14;
+  function section(label, value, vSize = 26) {
+    ctx.fillStyle = '#ff8a3d';
+    ctx.font = '700 13px Heebo, Arial, sans-serif';
+    ctx.fillText(label, sx + sw/2, cy);
+    cy += 16;
+    ctx.fillStyle = '#ffd966';
+    ctx.font = `900 ${vSize}px Heebo, Arial, sans-serif`;
+    ctx.fillText(value, sx + sw/2, cy);
+    cy += vSize + 8;
+    ctx.fillStyle = '#3a2870';
+    ctx.fillRect(sx + 8, cy, sw - 16, 1);
+    cy += 8;
+  }
+
+  section('שלב', `${state.stage + 1}`, 24);
+  section('ניקוד', String(state.score).padStart(6, '0'), 20);
+  section('זמן', formatTime(state.timeLeft), 22);
+
+  const stage = state.stages[state.stage] || state.stages[0];
+  ctx.fillStyle = '#ff8a3d';
+  ctx.font = '700 13px Heebo, Arial, sans-serif';
+  ctx.fillText(stage.type === 'word' ? 'המילה:' :
+               stage.type === 'sentence' ? 'המשפט:' : 'הפיסקה:',
+               sx + sw/2, cy);
+  cy += 16;
+
+  // Progress reflects how much of the hidden text is revealed, not raw brick count.
+  const pct = state.coverBricksTotal > 0
+    ? 1 - state.coverBricksLeft / state.coverBricksTotal
+    : (state.totalBricks > 0 ? state.brickHits / state.totalBricks : 0);
+  if (stage.type === 'word') {
+    const word = stage.text;
+    const reveal = Math.floor(pct * word.length);
+    let display = '';
+    for (let i = 0; i < word.length; i++) display += i < reveal ? word[i] : '?';
+    ctx.fillStyle = '#ffd966';
+    ctx.font = '900 22px Heebo, Arial, sans-serif';
+    ctx.fillText(display, sx + sw/2, cy);
+  } else {
+    ctx.fillStyle = '#ffd966';
+    ctx.font = '900 22px Heebo, Arial, sans-serif';
+    ctx.fillText(`${Math.floor(pct * 100)}%`, sx + sw/2, cy);
+    cy += 28;
+    // Progress bar
+    ctx.fillStyle = '#3a2870';
+    ctx.fillRect(sx + 8, cy, sw - 16, 8);
+    ctx.fillStyle = '#ff8a3d';
+    ctx.fillRect(sx + 8, cy, Math.floor((sw - 16) * pct), 8);
+  }
+
+  // Goal box at bottom
+  const goalY = sy + sh - 100;
+  ctx.fillStyle = '#3a2870';
+  ctx.fillRect(sx + 8, goalY, sw - 16, 1);
+  ctx.fillStyle = '#ff8a3d';
+  ctx.font = '700 14px Heebo, Arial, sans-serif';
+  ctx.fillText('מטרה', sx + sw/2, goalY + 10);
+  ctx.fillStyle = '#ccc8e8';
+  ctx.font = '400 13px Heebo, Arial, sans-serif';
+  const goal = stage.type === 'word'
+    ? ['שבור את כל הלבנים', 'וגלה את המילה!']
+    : stage.type === 'sentence'
+      ? ['שבור הכל וזכור', 'את המשפט!']
+      : ['שבור הכל', 'מה הנושא?'];
+  goal.forEach((l, i) => ctx.fillText(l, sx + sw/2, goalY + 30 + i * 18));
+}
+function formatTime(t) {
+  t = Math.max(0, t);
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function drawFooter() {
+  const fx = FRAME + 4;
+  const fy = H - FOOTER_H + 4;
+  const fw = (W - SIDEBAR_W) - fx - 4;
+  const fh = FOOTER_H - 8;
+
+  ctx.fillStyle = '#0e0828';
+  ctx.fillRect(fx, fy, fw, fh);
+  ctx.strokeStyle = '#3a2870';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(fx + 1, fy + 1, fw - 2, fh - 2);
+
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+
+  ctx.fillStyle = '#ff8a3d';
+  ctx.font = '700 14px Heebo, Arial, sans-serif';
+  ctx.fillText('החידה:', fx + fw / 2, fy + 12);
+
+  const stage = state.stages[state.stage] || state.stages[0];
+  ctx.fillStyle = '#ffd966';
+  ctx.font = '900 22px Heebo, Arial, sans-serif';
+  ctx.fillText(stage.riddle, fx + fw / 2, fy + 32);
+
+  ctx.fillStyle = '#6a4ab8';
+  ctx.font = '700 18px monospace';
+  ctx.fillText('_ _ _ _ _ _ _', fx + fw / 2, fy + 60);
+}
+// Dispatch to the right scene based on the current stage's theme.
+function drawSceneBg() {
+  const stage = state.stages[state.stage] || state.stages[0];
+  const fn = SCENE_DRAWERS[stage.scene] || drawSceneSpace;
+  fn();
+}
+
+function drawPixelCircle(cx, cy, r, fill, edge) {
+  // Row-based fill: 1–3 fillRect per scanline instead of (2r+1)² per-pixel rects.
+  // For r=40 this drops ~5000 fillRect calls to ~80 — major perf win for sunset/forest.
+  const innerR2 = (r - 2) * (r - 2);
+  const outerR2 = r * r;
+  for (let dy = -r; dy <= r; dy++) {
+    const limOuter = outerR2 - dy * dy;
+    if (limOuter < 0) continue;
+    const halfOuter = Math.floor(Math.sqrt(limOuter));
+    const limInner = innerR2 - dy * dy;
+    if (limInner > 0) {
+      const halfInner = Math.floor(Math.sqrt(limInner));
+      // Inner band (fill color)
+      ctx.fillStyle = fill;
+      ctx.fillRect(cx - halfInner, cy + dy, halfInner * 2 + 1, 1);
+      // Edge ring (left + right slivers)
+      ctx.fillStyle = edge;
+      const slice = halfOuter - halfInner;
+      if (slice > 0) {
+        ctx.fillRect(cx - halfOuter,    cy + dy, slice, 1);
+        ctx.fillRect(cx + halfInner + 1, cy + dy, slice, 1);
+      }
+    } else {
+      // Edge-only rows (top/bottom of the circle)
+      ctx.fillStyle = edge;
+      ctx.fillRect(cx - halfOuter, cy + dy, halfOuter * 2 + 1, 1);
+    }
+  }
+}
+
+// ----- SPACE -----
+function drawSceneSpace() {
+  const grad = ctx.createLinearGradient(0, PLAY_Y, 0, PLAY_Y + PLAY_H);
+  grad.addColorStop(0, '#0a0830'); grad.addColorStop(1, '#16104a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+  for (const g of decorations.space.galaxy) {
+    ctx.fillStyle = g.c;
+    ctx.fillRect(PLAY_X + g.x, PLAY_Y + g.y, 2, 2);
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(PLAY_X + 70, PLAY_Y + 70, 2, 2);
+  ctx.fillStyle = '#ff90c0';
+  ctx.fillRect(PLAY_X + 68, PLAY_Y + 70, 2, 2);
+  ctx.fillRect(PLAY_X + 72, PLAY_Y + 70, 2, 2);
+  drawTwinklingStars(decorations.space.stars, '255,240,200');
+  drawSaturn(PLAY_X + 70, PLAY_Y + PLAY_H - 80);
+  drawBluePlanet(PLAY_X + PLAY_W - 80, PLAY_Y + PLAY_H - 90);
+  drawMountains('#2a1a5a', '#1a0f3a');
+}
+function drawSaturn(cx, cy) {
+  drawPixelCircle(cx, cy, 22, '#a04a8a', '#7a3270');
+  ctx.fillStyle = '#d06aaa';
+  ctx.fillRect(cx - 10, cy - 14, 4, 4);
+  ctx.fillRect(cx - 6, cy - 16, 4, 4);
+  ctx.fillRect(cx - 10, cy - 10, 2, 2);
+  ctx.fillStyle = '#7a3270';
+  ctx.fillRect(cx - 36, cy - 1, 72, 2);
+  ctx.fillStyle = '#a04a8a';
+  ctx.fillRect(cx - 32, cy - 3, 64, 2);
+  ctx.fillRect(cx - 32, cy + 1, 64, 2);
+  ctx.fillStyle = '#16104a';
+  ctx.fillRect(cx - 22, cy - 1, 44, 2);
+}
+function drawBluePlanet(cx, cy) {
+  drawPixelCircle(cx, cy, 18, '#4a6acc', '#2a4a8a');
+  ctx.fillStyle = '#7a9aff';
+  ctx.fillRect(cx - 8, cy - 10, 4, 4);
+  ctx.fillRect(cx - 4, cy - 12, 4, 2);
+  ctx.fillStyle = '#2a3a7a';
+  ctx.fillRect(cx + 2, cy + 4, 6, 2);
+  ctx.fillRect(cx - 4, cy + 8, 8, 2);
+  ctx.fillRect(cx - 8, cy + 4, 4, 2);
+}
+
+// ----- OCEAN -----
+function drawSceneOcean() {
+  const grad = ctx.createLinearGradient(0, PLAY_Y, 0, PLAY_Y + PLAY_H);
+  grad.addColorStop(0, '#0a3050'); grad.addColorStop(0.5, '#0a4a7a'); grad.addColorStop(1, '#082858');
+  ctx.fillStyle = grad;
+  ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+
+  // Ripples — horizontal lines, faintly
+  ctx.fillStyle = 'rgba(160, 220, 255, 0.05)';
+  for (let y = 0; y < PLAY_H; y += 18) ctx.fillRect(PLAY_X, PLAY_Y + y, PLAY_W, 1);
+
+  // Bubbles rising
+  const tNow = performance.now() / 1000;
+  for (const b of decorations.ocean.bubbles) {
+    const yShift = (tNow * b.speed) % PLAY_H;
+    const y = (PLAY_H + b.y - yShift) % PLAY_H;
+    ctx.fillStyle = `rgba(180, 230, 255, 0.6)`;
+    drawPixelCircle(PLAY_X + b.x, PLAY_Y + y, b.r, '#9adfff', '#5aafff');
+    ctx.fillStyle = '#cffaff';
+    ctx.fillRect(PLAY_X + b.x - b.r + 1, PLAY_Y + y - b.r + 1, 1, 1);
+  }
+  // Coral / seaweed at bottom
+  const baseY = PLAY_Y + PLAY_H - 8;
+  for (let x = 0; x < PLAY_W; x += 22) {
+    const h = 18 + Math.floor((Math.sin(x * 0.13) + 1) * 12);
+    ctx.fillStyle = '#1a6850';
+    for (let dy = 0; dy < h; dy++) {
+      const wob = Math.floor(Math.sin((tNow + x) * 0.7 + dy * 0.3) * 1.5);
+      ctx.fillRect(PLAY_X + x + wob, baseY - dy, 3, 1);
+    }
+  }
+  // Sea floor
+  ctx.fillStyle = '#0a1a30';
+  ctx.fillRect(PLAY_X, PLAY_Y + PLAY_H - 8, PLAY_W, 8);
+}
+
+// ----- FOREST NIGHT -----
+function drawSceneForest() {
+  // Lighter, more readable night sky with mid-blue band
+  const grad = ctx.createLinearGradient(0, PLAY_Y, 0, PLAY_Y + PLAY_H);
+  grad.addColorStop(0,    '#1a2a4a'); // deep blue night sky
+  grad.addColorStop(0.45, '#2a4a5a'); // teal twilight
+  grad.addColorStop(0.7,  '#1a3a30'); // forest green hint
+  grad.addColorStop(1,    '#0a2018'); // ground
+  ctx.fillStyle = grad;
+  ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+
+  // Soft moon glow halo
+  const mx = PLAY_X + PLAY_W - 90, my = PLAY_Y + 60;
+  for (let r = 38; r > 26; r -= 2) {
+    const a = 0.05 + (38 - r) / 38 * 0.08;
+    ctx.fillStyle = `rgba(255, 240, 180, ${a})`;
+    drawPixelCircle(mx, my, r, `rgba(255, 240, 180, ${a})`, `rgba(255, 240, 180, ${a})`);
+  }
+  // Moon body
+  drawPixelCircle(mx, my, 24, '#fff8d0', '#e8c860');
+  // Craters
+  ctx.fillStyle = '#d8b850';
+  ctx.fillRect(mx - 10, my - 6, 5, 4);
+  ctx.fillRect(mx + 4,  my + 4, 4, 3);
+  ctx.fillRect(mx - 4,  my + 8, 3, 3);
+
+  // Twinkling stars
+  drawTwinklingStars(decorations.forest.stars, '220,240,255', 0.7);
+
+  // Distant mountain silhouette (medium-blue, between sky and trees)
+  drawMountainSilhouette(PLAY_Y + PLAY_H - 56, '#1a2a4a', 26);
+
+  // Tree silhouettes (almost-black, contrast against sky)
+  for (const t of decorations.forest.trees) {
+    drawTree(PLAY_X + t.x, PLAY_Y + PLAY_H - 18, t.h, t.w);
+  }
+
+  // Bright fireflies
+  const tNow = performance.now() / 1000;
+  for (const f of decorations.forest.fireflies) {
+    const intensity = 0.5 + 0.5 * Math.sin(tNow * f.twSpeed + f.tw);
+    if (intensity < 0.35) continue;
+    const dx = Math.floor(Math.sin(tNow * 0.3 + f.drift) * 5);
+    const dy = Math.floor(Math.cos(tNow * 0.5 + f.drift) * 4);
+    // Outer glow
+    ctx.fillStyle = `rgba(255, 255, 130, ${intensity * 0.3})`;
+    ctx.fillRect(PLAY_X + f.x + dx - 2, PLAY_Y + f.y + dy - 1, 6, 3);
+    ctx.fillRect(PLAY_X + f.x + dx - 1, PLAY_Y + f.y + dy - 2, 4, 5);
+    // Core
+    ctx.fillStyle = `rgba(255, 255, 130, ${intensity})`;
+    ctx.fillRect(PLAY_X + f.x + dx, PLAY_Y + f.y + dy, 3, 2);
+    ctx.fillStyle = `rgba(255, 255, 220, ${intensity})`;
+    ctx.fillRect(PLAY_X + f.x + dx + 1, PLAY_Y + f.y + dy, 1, 1);
+  }
+
+  // Forest floor with grass tufts
+  ctx.fillStyle = '#0a1810';
+  ctx.fillRect(PLAY_X, PLAY_Y + PLAY_H - 18, PLAY_W, 18);
+  ctx.fillStyle = '#1a3018';
+  for (let i = 0; i < 60; i++) {
+    const x = (i * 13 + 7) % PLAY_W;
+    ctx.fillRect(PLAY_X + x, PLAY_Y + PLAY_H - 18, 1, 3);
+  }
+
+  // Owl perched on a branch (just to the side of one tree)
+  drawOwl(PLAY_X + 80, PLAY_Y + PLAY_H - 70, tNow);
+
+  // Drifting mist bands at ground level
+  for (const m of decorations.forest.mist) {
+    const x = (m.x + tNow * m.speed) % (PLAY_W + m.w) - m.w;
+    ctx.fillStyle = `rgba(160, 200, 220, ${m.alpha})`;
+    ctx.fillRect(PLAY_X + x, PLAY_Y + m.y, m.w, 6);
+    ctx.fillStyle = `rgba(180, 210, 230, ${m.alpha * 1.3})`;
+    ctx.fillRect(PLAY_X + x + 10, PLAY_Y + m.y + 2, m.w - 20, 2);
+  }
+
+  // Falling leaves — drift down and sway sideways
+  for (const lf of decorations.forest.leaves) {
+    const fallY = (lf.y + tNow * lf.fallSpeed) % PLAY_H;
+    const sway = Math.sin(tNow * lf.swaySpeed + lf.swayPhase) * 6;
+    const lx = Math.round(PLAY_X + lf.x + sway);
+    const ly = Math.round(PLAY_Y + fallY);
+    // 2x3 leaf shape
+    ctx.fillStyle = lf.color;
+    ctx.fillRect(lx, ly, 2, 1);
+    ctx.fillRect(lx - 1, ly + 1, 4, 1);
+    ctx.fillRect(lx, ly + 2, 2, 1);
+  }
+}
+function drawOwl(cx, cy, tNow) {
+  // Tiny pixel owl: round body, two yellow eyes that blink
+  const blink = Math.sin(tNow * 0.7) > 0.93 ? 0 : 1;
+  // Body (dark brown)
+  ctx.fillStyle = '#2a1a14';
+  ctx.fillRect(cx - 4, cy - 5, 9, 9);
+  ctx.fillRect(cx - 3, cy - 7, 7, 2);
+  ctx.fillRect(cx - 5, cy - 4, 1, 6);
+  ctx.fillRect(cx + 5, cy - 4, 1, 6);
+  // Belly lighter
+  ctx.fillStyle = '#5a3a28';
+  ctx.fillRect(cx - 2, cy, 5, 3);
+  // Ear tufts
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(cx - 4, cy - 8, 1, 1);
+  ctx.fillRect(cx + 4, cy - 8, 1, 1);
+  // Eyes
+  if (blink) {
+    ctx.fillStyle = '#ffd966';
+    ctx.fillRect(cx - 3, cy - 6, 2, 2);
+    ctx.fillRect(cx + 2, cy - 6, 2, 2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(cx - 2, cy - 5, 1, 1);
+    ctx.fillRect(cx + 3, cy - 5, 1, 1);
+  } else {
+    ctx.fillStyle = '#1a0e08';
+    ctx.fillRect(cx - 3, cy - 5, 2, 1);
+    ctx.fillRect(cx + 2, cy - 5, 2, 1);
+  }
+  // Beak
+  ctx.fillStyle = '#aa5a18';
+  ctx.fillRect(cx, cy - 3, 1, 2);
+  // Branch beneath
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(cx - 8, cy + 4, 18, 2);
+}
+function drawTree(baseX, baseY, h, w) {
+  // Pine-tree silhouette: stacked triangles. Outline + fill so it pops.
+  ctx.fillStyle = '#040a06';     // near-black outline
+  for (let dy = 0; dy < h; dy++) {
+    const span = Math.floor(w * (1 - dy / h) * 1.4 + 2);
+    ctx.fillRect(baseX - span, baseY - dy, span * 2, 1);
+  }
+  ctx.fillStyle = '#0e2818';     // greenish fill, slightly inset
+  for (let dy = 1; dy < h - 1; dy++) {
+    const span = Math.floor(w * (1 - dy / h) * 1.4) - 1;
+    if (span > 0) ctx.fillRect(baseX - span, baseY - dy, span * 2, 1);
+  }
+  // Trunk
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(baseX - 2, baseY, 4, 10);
+}
+function drawMountainSilhouette(baseY, color, maxH) {
+  ctx.fillStyle = color;
+  const peaks = [[40, maxH], [110, maxH * 1.2], [180, maxH * 0.8],
+                 [260, maxH * 1.3], [340, maxH], [420, maxH * 1.1],
+                 [500, maxH * 0.9], [560, maxH]];
+  for (const [px, ph] of peaks) {
+    const phh = Math.floor(ph);
+    for (let dy = 0; dy < phh; dy++) {
+      const span = Math.floor((phh - dy) * 1.2);
+      ctx.fillRect(PLAY_X + px - span, baseY - dy, span * 2, 1);
+    }
+  }
+  ctx.fillRect(PLAY_X, baseY, PLAY_W, 2);
+}
+
+// ----- SUNSET -----
+function drawSceneSunset() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, PLAY_Y, 0, PLAY_Y + PLAY_H);
+  grad.addColorStop(0,    '#2a0a44');
+  grad.addColorStop(0.22, '#6a1a5a');
+  grad.addColorStop(0.42, '#d04a4a');
+  grad.addColorStop(0.55, '#ff8a3d');
+  grad.addColorStop(0.62, '#ffce6a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+
+  const tNow = performance.now() / 1000;
+  // Horizon line — where sky meets sea
+  const horizonY = PLAY_Y + Math.floor(PLAY_H * 0.62);
+
+  // ---- SEA below the horizon ----
+  const seaGrad = ctx.createLinearGradient(0, horizonY, 0, PLAY_Y + PLAY_H);
+  seaGrad.addColorStop(0, '#9a3a3a');
+  seaGrad.addColorStop(0.5, '#4a1a3a');
+  seaGrad.addColorStop(1, '#1a0820');
+  ctx.fillStyle = seaGrad;
+  ctx.fillRect(PLAY_X, horizonY, PLAY_W, PLAY_Y + PLAY_H - horizonY);
+
+  // ---- SUN sits on the horizon ----
+  const sunCx = PLAY_X + Math.floor(PLAY_W / 2);
+  const sunCy = horizonY - 6;             // half-set on horizon
+  const sunR = 36;
+  // Glow halos
+  for (let r = sunR + 28; r > sunR; r -= 3) {
+    const a = 0.03 + ((sunR + 28 - r) / 28) * 0.13;
+    ctx.fillStyle = `rgba(255, 210, 110, ${a})`;
+    drawPixelCircle(sunCx, sunCy, r, `rgba(255, 210, 110, ${a})`, `rgba(255, 210, 110, ${a})`);
+  }
+  // Sun body — gradient surface, drawn one scanline at a time (perf-critical).
+  for (let dy = -sunR; dy <= sunR; dy++) {
+    const lim = sunR * sunR - dy * dy;
+    if (lim < 0) continue;
+    const halfW = Math.floor(Math.sqrt(lim));
+    const t = (dy + sunR) / (2 * sunR);
+    const rr = Math.round(255 - t * 20);
+    const gg = Math.round(220 - t * 60);
+    const bb = Math.round(120 - t * 80);
+    ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+    ctx.fillRect(sunCx - halfW, sunCy + dy, halfW * 2 + 1, 1);
+    // Single-pixel edge ring on each side
+    ctx.fillStyle = '#ff8a30';
+    ctx.fillRect(sunCx - halfW, sunCy + dy, 1, 1);
+    ctx.fillRect(sunCx + halfW, sunCy + dy, 1, 1);
+  }
+  // Bright spot top-left
+  ctx.fillStyle = '#fffbe0';
+  ctx.fillRect(sunCx - 12, sunCy - 14, 6, 4);
+  ctx.fillRect(sunCx - 14, sunCy - 10, 4, 4);
+
+  // ---- SUN reflection strip on water (long golden trail) ----
+  const seaH = PLAY_Y + PLAY_H - horizonY;
+  for (let row = 0; row < seaH; row++) {
+    const y = horizonY + row;
+    // Trail width grows toward viewer
+    const baseW = 12 + row * 1.2;
+    const wobble = Math.sin(tNow * 2.0 + row * 0.18) * (1 + row * 0.08);
+    const cx = sunCx + wobble;
+    const a = Math.max(0, 0.55 - row * 0.012);
+    // Main golden trail
+    ctx.fillStyle = `rgba(255, 215, 110, ${a})`;
+    ctx.fillRect(Math.round(cx - baseW), y, Math.round(baseW * 2), 1);
+    // Brighter core (only every few rows for shimmer)
+    if (row % 3 === 0) {
+      ctx.fillStyle = `rgba(255, 245, 200, ${a * 0.9})`;
+      ctx.fillRect(Math.round(cx - baseW * 0.4), y, Math.round(baseW * 0.8), 1);
+    }
+  }
+
+  // ---- Wave crests across the sea ----
+  for (let row = 4; row < seaH; row += 6) {
+    const y = horizonY + row;
+    const phase = tNow * 1.5 + row * 0.4;
+    ctx.fillStyle = `rgba(255, 220, 180, ${Math.max(0, 0.25 - row * 0.005)})`;
+    for (let i = 0; i < 12; i++) {
+      const x = ((i * 80 + phase * 30) % PLAY_W);
+      // Skip crests too close to sun strip (already painted)
+      if (Math.abs(PLAY_X + x - sunCx) < 30 + row) continue;
+      ctx.fillRect(PLAY_X + Math.round(x), y, 6, 1);
+    }
+  }
+
+  // ---- Sun rays in the sky (thin, animated) ----
+  for (let i = 0; i < 6; i++) {
+    const ang = -Math.PI/2 - 0.7 + (i / 5) * 1.4 + Math.sin(tNow * 0.3 + i) * 0.05;
+    const r1 = sunR + 4, r2 = sunR + 90 + Math.sin(tNow * 0.8 + i) * 8;
+    const x1 = Math.round(sunCx + Math.cos(ang) * r1);
+    const y1 = Math.round(sunCy + Math.sin(ang) * r1);
+    const x2 = Math.round(sunCx + Math.cos(ang) * r2);
+    const y2 = Math.round(sunCy + Math.sin(ang) * r2);
+    ctx.fillStyle = `rgba(255, 235, 150, ${0.18 + 0.12 * Math.sin(tNow * 1.5 + i)})`;
+    drawPixelLine(x1, y1, x2, y2);
+  }
+
+  // ---- Drifting clouds (orange-tinted) ----
+  for (const c of decorations.sunset.clouds) {
+    const x = (c.x + tNow * c.speed) % (PLAY_W + c.w) - c.w;
+    drawCloud(PLAY_X + x, PLAY_Y + c.y, c.w);
+  }
+
+  // ---- Distant sailboat (silhouette on horizon) ----
+  const boatT = (tNow * 8) % (PLAY_W + 80);
+  const bx = PLAY_X + PLAY_W - boatT;
+  const by = horizonY - 1;
+  // Hull
+  ctx.fillStyle = '#1a0410';
+  ctx.fillRect(bx - 5, by, 11, 2);
+  ctx.fillRect(bx - 4, by + 2, 9, 1);
+  // Mast
+  ctx.fillRect(bx - 1, by - 12, 1, 12);
+  // Sail (triangle)
+  ctx.fillStyle = '#3a1828';
+  for (let dy = 0; dy < 11; dy++) {
+    const w = Math.floor((11 - dy) * 0.6);
+    ctx.fillRect(bx, by - 11 + dy, w, 1);
+  }
+  ctx.fillStyle = '#1a0410';
+  ctx.fillRect(bx, by - 12, 1, 12);
+
+  // ---- Flying birds (V silhouettes, flap up/down) ----
+  for (const b of decorations.sunset.birds) {
+    const bxb = PLAY_X + ((b.x + tNow * b.speed) % (PLAY_W + 30)) - 15;
+    const byb = PLAY_Y + b.y;
+    const flap = Math.sin(tNow * b.flapSpeed + b.flapPhase) > 0;
+    ctx.fillStyle = '#1a0820';
+    if (flap) {
+      ctx.fillRect(bxb - 4, byb - 1, 1, 1);
+      ctx.fillRect(bxb - 3, byb - 2, 1, 1);
+      ctx.fillRect(bxb - 2, byb - 1, 2, 1);
+      ctx.fillRect(bxb,     byb,     2, 1);
+      ctx.fillRect(bxb + 2, byb - 1, 2, 1);
+      ctx.fillRect(bxb + 3, byb - 2, 1, 1);
+      ctx.fillRect(bxb + 4, byb - 1, 1, 1);
+    } else {
+      ctx.fillRect(bxb - 4, byb + 1, 1, 1);
+      ctx.fillRect(bxb - 3, byb,     1, 1);
+      ctx.fillRect(bxb - 2, byb - 1, 2, 1);
+      ctx.fillRect(bxb,     byb - 1, 2, 1);
+      ctx.fillRect(bxb + 2, byb - 1, 2, 1);
+      ctx.fillRect(bxb + 3, byb,     1, 1);
+      ctx.fillRect(bxb + 4, byb + 1, 1, 1);
+    }
+  }
+
+  // ---- Palm trees on both sides (silhouettes) ----
+  drawPalmTree(PLAY_X + 30,  PLAY_Y + PLAY_H - 8, 1);   // leans right
+  drawPalmTree(PLAY_X + PLAY_W - 30, PLAY_Y + PLAY_H - 8, -1);  // leans left
+}
+function drawPalmTree(baseX, baseY, lean) {
+  // Trunk: curved silhouette
+  ctx.fillStyle = '#0a0410';
+  const trunkH = 90;
+  for (let dy = 0; dy < trunkH; dy++) {
+    const curve = Math.round(Math.sin((dy / trunkH) * Math.PI * 0.6) * 12 * lean);
+    const w = dy < 8 ? 5 : (dy < 30 ? 4 : 3);
+    ctx.fillRect(baseX + curve - Math.floor(w/2), baseY - dy, w, 1);
+  }
+  // Crown of palm fronds — 6 leaves radiating from top
+  const topX = baseX + Math.round(Math.sin(0.6 * Math.PI) * 12 * lean);
+  const topY = baseY - trunkH;
+  ctx.fillStyle = '#0a0410';
+  // Big fan-shaped fronds (each is a curve of pixels)
+  const fronds = [
+    [-22, -8, -1.0],
+    [-26,  4, -0.4],
+    [-14, 14, -0.1],
+    [ 14, 14,  0.1],
+    [ 26,  4,  0.4],
+    [ 22, -8,  1.0],
+  ];
+  for (const [dx, dy, k] of fronds) {
+    // Draw a curved frond as a series of dots
+    const len = 16;
+    for (let s = 0; s < len; s++) {
+      const t = s / len;
+      const fx = topX + Math.round(dx * t);
+      const fy = topY + Math.round(dy * t + Math.sin(t * Math.PI) * -4);
+      ctx.fillRect(fx, fy, 2, 1);
+      if (s % 2 === 0) ctx.fillRect(fx, fy + 1, 1, 1);
+    }
+  }
+  // Coconut clusters
+  ctx.fillStyle = '#3a1408';
+  ctx.fillRect(topX + 1 * lean, topY + 2, 2, 2);
+  ctx.fillRect(topX - 1 * lean, topY + 4, 2, 2);
+}
+function drawCloud(x, y, w) {
+  ctx.fillStyle = 'rgba(120, 30, 50, 0.55)';
+  ctx.fillRect(x, y + 3, w, 6);
+  ctx.fillRect(x + w/4, y, w/2, 8);
+  ctx.fillRect(x + w/3, y - 2, w/3, 6);
+  ctx.fillStyle = 'rgba(255, 180, 130, 0.75)';
+  ctx.fillRect(x + 2, y + 4, 3, 1);
+  ctx.fillRect(x + w/3, y, 3, 1);
+}
+function drawPixelLine(x1, y1, x2, y2) {
+  // Bresenham
+  const dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+  const sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1;
+  let err = dx - dy, x = x1, y = y1;
+  while (true) {
+    ctx.fillRect(x, y, 1, 1);
+    if (x === x2 && y === y2) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x += sx; }
+    if (e2 < dx)  { err += dx; y += sy; }
+  }
+}
+
+// ----- DESERT (Western, with rolling tumbleweeds) -----
+function drawSceneDesert() {
+  const tNow = performance.now() / 1000;
+
+  // Sky → distant haze → sand gradient
+  const grad = ctx.createLinearGradient(0, PLAY_Y, 0, PLAY_Y + PLAY_H);
+  grad.addColorStop(0,    '#f4b070');   // pale apricot sky
+  grad.addColorStop(0.30, '#f08a4a');   // warm amber
+  grad.addColorStop(0.55, '#d8703a');   // orange horizon
+  grad.addColorStop(0.62, '#a85028');   // distant red rock
+  grad.addColorStop(0.78, '#c87838');   // sandy plain
+  grad.addColorStop(1,    '#8a4818');   // shaded foreground
+  ctx.fillStyle = grad;
+  ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+
+  // Distant sun (small bright disc)
+  drawPixelCircle(PLAY_X + PLAY_W - 100, PLAY_Y + 38, 14, '#fff5b0', '#ffce6a');
+  ctx.fillStyle = 'rgba(255, 220, 130, 0.18)';
+  ctx.fillRect(PLAY_X + PLAY_W - 116, PLAY_Y + 36, 32, 5);
+
+  // Far layer: distant mountains (faintest)
+  const horizonY = PLAY_Y + Math.floor(PLAY_H * 0.55);
+  ctx.fillStyle = 'rgba(100, 50, 30, 0.55)';
+  for (let i = 0; i < 4; i++) {
+    const cx = PLAY_X + 80 + i * 160;
+    const h = 26 + (i * 13) % 20;
+    for (let dy = 0; dy < h; dy++) {
+      const span = Math.floor((h - dy) * 1.6);
+      ctx.fillRect(cx - span, horizonY - dy, span * 2, 1);
+    }
+  }
+
+  // Horizon line (dark amber)
+  ctx.fillStyle = 'rgba(70, 30, 14, 0.5)';
+  ctx.fillRect(PLAY_X, horizonY, PLAY_W, 1);
+
+  // Mid layer: mesas (closer red rock formations)
+  for (const m of decorations.desert.mesas) {
+    drawMesa(PLAY_X + m.x, horizonY, m.h, m.w);
+  }
+
+  // Heat shimmer on the ground (subtle wobbly bands)
+  for (let row = 0; row < 6; row++) {
+    const y = horizonY + 4 + row * 4;
+    const wob = Math.floor(Math.sin(tNow * 1.4 + row) * 2);
+    ctx.fillStyle = `rgba(255, 240, 180, ${0.08 - row * 0.012})`;
+    ctx.fillRect(PLAY_X, y + wob, PLAY_W, 1);
+  }
+
+  // Sand floor + duned silhouette curve
+  const groundY = PLAY_Y + PLAY_H - 16;
+  // Soft far dunes
+  ctx.fillStyle = '#a86028';
+  for (let x = 0; x < PLAY_W; x += 2) {
+    const h = Math.floor(8 + Math.sin(x * 0.05) * 4 + Math.cos(x * 0.013) * 3);
+    ctx.fillRect(PLAY_X + x, groundY - h, 2, h);
+  }
+  // Front sand strip
+  ctx.fillStyle = '#7a3818';
+  ctx.fillRect(PLAY_X, groundY, PLAY_W, 16);
+  // Sand grain dots
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 19 + 7) % PLAY_W;
+    ctx.fillStyle = i % 3 === 0 ? '#d8a060' : '#a87038';
+    ctx.fillRect(PLAY_X + x, groundY + (i % 8) + 2, 1, 1);
+  }
+
+  // Cacti (saguaro silhouettes)
+  for (const c of decorations.desert.cacti) {
+    drawSaguaro(PLAY_X + c.x, groundY, c.h, c.arms);
+  }
+
+  // Drifting dust motes (foreground)
+  for (const d of decorations.desert.dust) {
+    const x = PLAY_X + ((d.x + tNow * d.speed) % PLAY_W);
+    const wob = Math.sin(tNow * 0.7 + d.x) * 3;
+    ctx.fillStyle = `rgba(232, 200, 152, ${d.alpha})`;
+    ctx.fillRect(Math.round(x), Math.round(PLAY_Y + d.y + wob), d.size, d.size);
+  }
+
+  // Rolling tumbleweeds — bouncing across the ground
+  for (const t of decorations.desert.tumbleweeds) {
+    const x = PLAY_X + ((t.x + tNow * t.speed) % (PLAY_W + 40)) - 20;
+    const bounce = Math.abs(Math.sin(tNow * 4 + t.bouncePh)) * 6;
+    const y = PLAY_Y + t.yBase - bounce;
+    drawTumbleweed(x, y, t.r, tNow * 6 + t.spinPh);
+  }
+}
+function drawMesa(cx, baseY, h, w) {
+  // Flat-top mesa silhouette: tapered base, vertical walls, flat top.
+  ctx.fillStyle = '#7a3018';
+  for (let dy = 0; dy < h; dy++) {
+    const taper = dy < 4 ? 0 : Math.min(8, dy - 4);
+    const halfW = Math.floor(w / 2) - taper;
+    if (halfW <= 0) continue;
+    ctx.fillRect(cx - halfW, baseY - dy, halfW * 2, 1);
+  }
+  // Top highlight
+  ctx.fillStyle = '#a85028';
+  ctx.fillRect(cx - Math.floor(w/2), baseY - h, w, 2);
+  // Vertical strata lines
+  ctx.fillStyle = '#5a2010';
+  for (let dy = 4; dy < h; dy += 5) {
+    const halfW = Math.floor(w/2) - Math.min(8, dy - 4);
+    ctx.fillRect(cx - halfW, baseY - dy, halfW * 2, 1);
+  }
+}
+function drawSaguaro(baseX, baseY, h, armCount) {
+  // Trunk
+  ctx.fillStyle = '#1a3018';
+  ctx.fillRect(baseX - 2, baseY - h, 5, h);
+  ctx.fillStyle = '#2a4a28';
+  ctx.fillRect(baseX - 1, baseY - h, 3, h);
+  // Vertical ridges
+  ctx.fillStyle = '#0a1a0a';
+  ctx.fillRect(baseX - 2, baseY - h, 1, h);
+  ctx.fillRect(baseX + 2, baseY - h, 1, h);
+  // Top rounded cap
+  ctx.fillStyle = '#1a3018';
+  ctx.fillRect(baseX - 1, baseY - h - 1, 3, 1);
+  // Arms
+  if (armCount >= 1) {
+    const armY = baseY - Math.floor(h * 0.55);
+    // Right arm
+    ctx.fillStyle = '#1a3018';
+    ctx.fillRect(baseX + 3, armY, 5, 2);
+    ctx.fillRect(baseX + 6, armY - 8, 2, 8);
+    ctx.fillStyle = '#2a4a28';
+    ctx.fillRect(baseX + 6, armY - 7, 1, 7);
+  }
+  if (armCount >= 2) {
+    const armY = baseY - Math.floor(h * 0.7);
+    // Left arm (a bit higher)
+    ctx.fillStyle = '#1a3018';
+    ctx.fillRect(baseX - 7, armY, 5, 2);
+    ctx.fillRect(baseX - 7, armY - 6, 2, 6);
+    ctx.fillStyle = '#2a4a28';
+    ctx.fillRect(baseX - 6, armY - 5, 1, 5);
+  }
+}
+function drawTumbleweed(cx, cy, r, t) {
+  // Base outer ring
+  drawPixelCircle(cx, cy, r,     '#5a3a18', '#2a1408');
+  drawPixelCircle(cx, cy, r - 2, '#7a5028', '#5a3a18');
+  // Tangle of strands (rotating with time)
+  ctx.fillStyle = '#3a1a08';
+  for (let i = 0; i < 7; i++) {
+    const ang = i * (Math.PI * 2 / 7) + t * 0.08;
+    for (let s = -r + 1; s < r; s += 1) {
+      const fx = Math.round(cx + Math.cos(ang) * s);
+      const fy = Math.round(cy + Math.sin(ang) * s);
+      const d2 = (fx - cx) * (fx - cx) + (fy - cy) * (fy - cy);
+      if (d2 < (r - 1) * (r - 1)) ctx.fillRect(fx, fy, 1, 1);
+    }
+  }
+  // A few brighter strands for texture
+  ctx.fillStyle = '#aa7a3a';
+  for (let i = 0; i < 4; i++) {
+    const ang = i * 0.78 + t * 0.12;
+    const sx = Math.round(cx + Math.cos(ang) * (r - 3));
+    const sy = Math.round(cy + Math.sin(ang) * (r - 3));
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+  // Dust trail behind
+  ctx.fillStyle = 'rgba(232, 200, 152, 0.35)';
+  ctx.fillRect(cx + r - 2, cy + r - 1, 4, 2);
+  ctx.fillStyle = 'rgba(232, 200, 152, 0.18)';
+  ctx.fillRect(cx + r + 2, cy + r - 1, 4, 1);
+}
+
+// ----- shared helpers -----
+function drawTwinklingStars(starList, rgbBase, alphaScale = 1) {
+  for (const s of starList) {
+    const intensity = 0.5 + 0.5 * Math.sin(s.tw + performance.now() / 1000 * s.twSpeed);
+    if (intensity < 0.25) continue;
+    const a = (0.4 + 0.6 * intensity) * alphaScale;
+    ctx.fillStyle = `rgba(${rgbBase}, ${a})`;
+    if (s.big) {
+      ctx.fillRect(PLAY_X + s.x, PLAY_Y + s.y - 1, 1, 3);
+      ctx.fillRect(PLAY_X + s.x - 1, PLAY_Y + s.y, 3, 1);
+    } else {
+      ctx.fillRect(PLAY_X + s.x, PLAY_Y + s.y, 1, 1);
+    }
+  }
+}
+function drawMountains(fg, ground) {
+  ctx.fillStyle = fg;
+  const baseY = PLAY_Y + PLAY_H - 18;
+  const peaks = [[50, 24], [120, 38], [180, 22], [250, 42],
+                 [330, 28], [410, 36], [480, 22], [560, 32]];
+  for (const [px, ph] of peaks) {
+    for (let dy = 0; dy < ph; dy++) {
+      const span = ph - dy;
+      ctx.fillRect(PLAY_X + px - span, baseY - dy, span * 2, 1);
+    }
+  }
+  ctx.fillStyle = ground;
+  ctx.fillRect(PLAY_X, baseY, PLAY_W, 18);
+}
+
+// Map scene names -> drawer functions
+const SCENE_DRAWERS = {
+  space:  drawSceneSpace,
+  ocean:  drawSceneOcean,
+  forest: drawSceneForest,
+  sunset: drawSceneSunset,
+  desert: drawSceneDesert,
+};
+function drawBricks() {
+  // Use the palette defined by the current stage's theme
+  const stage = state.stages[state.stage] || state.stages[0];
+  const palette = PALETTES[stage.palette] || PALETTES.orange;
+  for (const b of state.bricks) {
+    if (!b.alive) continue;
+    const sx = b.shake > 0 ? Math.round((Math.random() - 0.5) * 2) : 0;
+    const sy = b.shake > 0 ? Math.round((Math.random() - 0.5) * 2) : 0;
+    const x = b.x + sx, y = b.y + sy, w = b.w, h = b.h;
+    const [main, hi, sh, ol] = palette[b.row % palette.length];
+    const stroke = w >= 24 ? 3 : w >= 18 ? 2 : 2;
+
+    // Outline
+    ctx.fillStyle = ol;
+    ctx.fillRect(x, y, w, h);
+    // Main body
+    ctx.fillStyle = main;
+    ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    // Top + left chunky highlight
+    ctx.fillStyle = hi;
+    ctx.fillRect(x + 1, y + 1, w - 2, stroke);
+    ctx.fillRect(x + 1, y + 1, stroke, h - 2);
+    // Bottom + right chunky shadow
+    ctx.fillStyle = sh;
+    ctx.fillRect(x + w - 1 - stroke, y + 1, stroke, h - 2);
+    ctx.fillRect(x + 1, y + h - 1 - stroke, w - 2, stroke);
+    // Inner sparkle (small bricks: skip)
+    if (w >= 22) {
+      ctx.fillStyle = '#fff5c0';
+      ctx.fillRect(x + stroke + 2, y + stroke + 2, 3, 3);
+    } else if (w >= 16) {
+      ctx.fillStyle = '#fff5c0';
+      ctx.fillRect(x + stroke + 1, y + stroke + 1, 2, 2);
+    }
+  }
+}
+function drawBall() {
+  // Trail
+  for (let i = 0; i < state.ball.trail.length; i++) {
+    const t = state.ball.trail[i];
+    const a = (i + 1) / state.ball.trail.length;
+    ctx.fillStyle = `rgba(255, 230, 80, ${a * 0.35})`;
+    ctx.fillRect(Math.round(t.x) - 4, Math.round(t.y) - 4, 8, 8);
+  }
+  const x = Math.round(state.ball.x), y = Math.round(state.ball.y);
+  // Black outline
+  drawPixelCircle(x, y, BALL_R, '#1a1500', '#1a1500');
+  // Yellow body
+  drawPixelCircle(x, y, BALL_R - 1, '#d8d836', '#aaaa30');
+  // Bright highlight
+  ctx.fillStyle = '#ffff80';
+  ctx.fillRect(x - 3, y - 3, 2, 2);
+  // White seam line
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(x - 4, y + 1, 2, 1);
+  ctx.fillRect(x - 5, y, 1, 1);
+  ctx.fillRect(x + 2, y - 1, 2, 1);
+  ctx.fillRect(x + 4, y, 1, 1);
+
+  // "Press space" hint when attached
+  if (state.ball.attached && state.running) {
+    const blink = (Math.sin(performance.now() / 250) + 1) / 2;
+    if (blink > 0.4) {
+      ctx.fillStyle = '#ffd966';
+      ctx.font = '700 16px Heebo, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('לחץ רווח לשגר את הכדור', PLAY_X + PLAY_W / 2, state.paddle.y - 38);
+    }
+  }
+}
+function drawPaddle() {
+  const p = state.paddle;
+  const x = Math.round(p.x), y = Math.round(p.y);
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x + 3, y + 3, p.w, p.h);
+  // Red body
+  ctx.fillStyle = '#c0303a';
+  ctx.fillRect(x, y, p.w, p.h);
+  ctx.fillStyle = '#ff5a5a';
+  ctx.fillRect(x, y, p.w, 4);
+  ctx.fillStyle = '#7a1a20';
+  ctx.fillRect(x, y + p.h - 3, p.w, 3);
+  // White metallic ends
+  const tape = 12;
+  ctx.fillStyle = '#dadada';
+  ctx.fillRect(x, y, tape, p.h);
+  ctx.fillRect(x + p.w - tape, y, tape, p.h);
+  ctx.fillStyle = '#fafafa';
+  ctx.fillRect(x, y, tape, 3);
+  ctx.fillRect(x + p.w - tape, y, tape, 3);
+  ctx.fillStyle = '#7a7a7a';
+  ctx.fillRect(x, y + p.h - 3, tape, 3);
+  ctx.fillRect(x + p.w - tape, y + p.h - 3, tape, 3);
+  // Center divider on tape ends
+  ctx.fillStyle = '#9a9a9a';
+  ctx.fillRect(x + tape - 1, y + 2, 1, p.h - 4);
+  ctx.fillRect(x + p.w - tape, y + 2, 1, p.h - 4);
+}
+function drawParticles() {
+  for (const p of state.particles) {
+    const a = Math.max(0, Math.min(1, p.life / 0.7));
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.c;
+    ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ====================================================================
+// UI WIRING
+// ====================================================================
+// Remember last-chosen difficulty so restart goes back to it.
+let lastStartStage = 0;
+function bindStart(scope) {
+  scope.querySelectorAll('.diff-card, .diff-btn').forEach(btn => {
+    btn.onclick = () => {
+      ensureAudio();
+      lastStartStage = parseInt(btn.dataset.stage, 10) || 0;
+      // Hide every overlay so play resumes
+      document.querySelectorAll('.overlay').forEach(o => o.classList.remove('active'));
+      startGame(lastStartStage);
+    };
+  });
+}
+bindStart(document.getElementById('startScreen'));
+
+document.getElementById('restartBtn').onclick = () => {
+  ensureAudio();
+  document.getElementById('gameOverScreen').classList.remove('active');
+  document.getElementById('startScreen').classList.add('active');
+};
+document.getElementById('playAgainBtn').onclick = () => {
+  ensureAudio();
+  document.getElementById('winScreen').classList.remove('active');
+  document.getElementById('startScreen').classList.add('active');
+};
+
+// ====================================================================
+// BOOT — wait for fonts so the bricks sample the right glyph shapes
+// ====================================================================
+function boot() {
+  // Pre-populate a default beginner pool so the canvas has something to show
+  // behind the start-screen overlay.
+  state.stages = pickStages(0);
+  state.paddle.x = PLAY_X + (PLAY_W - PADDLE_W) / 2;
+  state.paddle.y = PLAY_Y + PLAY_H - 36;
+  const built = buildStage(state.stages[0]);
+  state.bricks = built.bricks;
+  state.textCanvas = built.textCanvas;
+  state.textX = built.textX;
+  state.textY = built.textY;
+  state.totalBricks = state.bricks.length;
+  state.timeLeft = state.stages[0].timeLimit;
+  resetBall();
+  requestAnimationFrame(loop);
+}
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(boot);
+} else {
+  window.addEventListener('load', boot);
+}
+</script>
+</body>
+</html>
