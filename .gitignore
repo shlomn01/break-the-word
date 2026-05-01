@@ -3,6 +3,7 @@
 *.jpg
 *.jpeg
 !assets/sprites/*.png
+!assets/preview.png
 
 # Claude local config
 .claude/
